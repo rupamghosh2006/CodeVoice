@@ -28,7 +28,7 @@ export const config = {
   },
   gemini: {
     apiKey: require_env('GEMINI_API_KEY'),
-    model: optional_env('GEMINI_MODEL', 'gemini-3.6-flash'),
+    model: optional_env('GEMINI_MODEL', 'gemini-3.7-flash'),
   },
   app: {
     port: parseInt(optional_env('PORT', '3000'), 10),

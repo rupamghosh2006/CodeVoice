@@ -107,14 +107,22 @@ export async function routeIntent(transcript: string): Promise<Intent> {
   }
 
   let result;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 4; attempt++) {
     try {
       result = await model.generateContent(transcript);
       break;
     } catch (err: any) {
-      if ((err?.status === 429 || String(err).includes('429')) && attempt < 3) {
-        const wait = attempt * 3000;
-        logger.warn(`Rate limit hit, retrying in ${wait}ms...`);
+      if ((err?.status === 429 || err?.status === 503 || String(err).includes('429') || String(err).includes('503')) && attempt < 4) {
+        let wait = attempt * 4000;
+        if (Array.isArray(err?.errorDetails)) {
+          for (const d of err.errorDetails) {
+            if (d?.retryDelay) {
+              const sec = parseFloat(d.retryDelay);
+              if (!isNaN(sec)) wait = Math.max(wait, Math.ceil(sec * 1000) + 1000);
+            }
+          }
+        }
+        logger.warn(`API backoff (${err?.status || 'rate-limited'}), waiting ${Math.round(wait / 1000)}s before retry ${attempt}...`);
         await new Promise((r) => setTimeout(r, wait));
       } else {
         throw err;
