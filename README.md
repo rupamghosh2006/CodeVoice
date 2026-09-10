@@ -10,6 +10,13 @@ Built for the [AssemblyAI Voice Hackathon Week: Hack into Dictation](https://www
 
 ---
 
+## 📚 Documentation
+
+- 🚀 **[Quickstart Guide](docs/quickstart.md)** — Step-by-step installation, prerequisites, SoX setup, and voice command walkthrough.
+- 🏗️ **[System Architecture](docs/architecture.md)** — Deep-dive system architecture, Mermaid diagrams, streaming protocol, and security model.
+
+---
+
 ## 💡 Why CodeVoice Fits the Hackathon Criteria
 
 1. **Real-time dictation & live transcription** — Continuous streaming via AssemblyAI's `universal-3-5-pro` with live in-place partial transcript display and instantaneous turn actions.
