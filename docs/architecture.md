@@ -1,6 +1,6 @@
 # CodeVoice architecture
 
-CodeVoice is a multilingual voice interface for software development running directly inside the VS Code integrated terminal. The application combines continuous low-latency microphone capture, real-time WebSocket streaming with AssemblyAI's `universal-3-5-pro` model, domain vocabulary steering via `keyterms_prompt`, multilingual intent routing powered by Gemini Flash, direct filesystem code generation and editing, and an allowlisted, sanitized Git execution engine.
+CodeVoice is a multilingual voice interface for software development running directly inside the VS Code integrated terminal. The application combines continuous low-latency microphone capture, real-time WebSocket streaming with AssemblyAI's universal-3-5-pro model, domain vocabulary steering via keyterms_prompt, multilingual intent routing powered by Gemini Flash, direct filesystem code generation and editing, and an allowlisted, sanitized Git execution engine.
 
 ---
 
@@ -67,7 +67,7 @@ flowchart TB
 | **Intent Router (`src/intent/router.ts`)** | Classifies final speech transcripts into a strongly typed TypeScript discriminated union (`CodeIntent \| GitIntent \| FileSwitchIntent`) using Gemini Flash with JSON Schema enforcement and Hinglish few-shot examples. Enforces pre-LLM destructive keyword checks. |
 | **Code Agent (`src/agents/codeAgent.ts`)** | Reads the active target file, constructs a structured code generation/editing prompt with TypeScript guidelines, queries Gemini Flash, and writes the output directly back to disk. Returns a one-line summary for terminal reporting. |
 | **Git Agent (`src/agents/gitAgent.ts`)** | Translates structured `GitIntent` objects into an explicit command allowlist. Executes commands using `child_process.execFile` with argument arrays (never arbitrary shell strings) and applies parameter sanitization. |
-| **CLI Presentation (`src/cli.ts`)** | Orchestrates the session lifecycle, renders real-time in-place partial transcripts (`\r● ...`), prints formatted turns with language badges, echoes Git commands, and handles interactive readline confirmation prompts for destructive commands. |
+| **CLI Presentation (`src/cli.ts`)** | Orchestrates the session lifecycle, renders real-time in-place partial transcripts, prints formatted turns with language badges, echoes Git commands, and handles interactive readline confirmation prompts for destructive commands. |
 | **Configuration (`src/utils/config.ts`)** | Validates required environment variables, loads default paths, and configures global network settings (`dns.setDefaultResultOrder('ipv4first')`) to eliminate Node.js 24 IPv6 connection timeouts. |
 
 ---
@@ -141,11 +141,11 @@ flowchart TD
    Transcripts are evaluated against `DESTRUCTIVE_KEYWORDS` *before* invoking the LLM. If a destructive pattern is matched, a `DestructiveIntentError` is thrown immediately, bypassing external API latency and guarding against prompt manipulation.
 2. **Hinglish Few-Shot Conditioning**:
    The system prompt equips the model with canonical English, Hindi, and code-switched Hinglish patterns:
-   - `"Ek email validator function banao"` ➔ `code_generation`
-   - `"useEffect ke andar API call add karo"` ➔ `code_edit`
-   - `"Nayi branch banao feature-login"` ➔ `git_branch`
-   - `"Sab files add karo"` ➔ `git_add`
-   - `"Commit karo add validation"` ➔ `git_commit`
+   - `"Ek email validator function banao"` -> `code_generation`
+   - `"useEffect ke andar API call add karo"` -> `code_edit`
+   - `"Nayi branch banao feature-login"` -> `git_branch`
+   - `"Sab files add karo"` -> `git_add`
+   - `"Commit karo add validation"` -> `git_commit`
 3. **Resilient Rate-Limit Backoff**:
    API calls automatically catch HTTP 429 quota exhaustion and apply exponential retry backoff, preserving session continuity during rapid voice inputs.
 
@@ -171,7 +171,7 @@ sequenceDiagram
     Disk-->>Tab: FileSystemWatcher Trigger
     Note over Tab: Editor tab updates instantly on screen!
     Agent-->>CLI: return { summary: "Create email validation..." }
-    CLI-->>Dev: ✓ updated demo/sample.ts (Create email validation...)
+    CLI-->>Dev: [Updated] demo/sample.ts (Create email validation...)
 ```
 
 1. **State Consistency**:
@@ -238,21 +238,21 @@ sequenceDiagram
     User->>Mic: Speaks command into microphone
     Mic->>AAI: Binary PCM16 audio frames (16kHz)
     AAI-->>CLI: Turn (end_of_turn: false)
-    Note over CLI: Live in-place update: \r● <partial>
+    Note over CLI: Live in-place update: \r[Partial] <text>
     AAI-->>CLI: Turn (end_of_turn: true)
-    CLI->>CLI: Print final turn: 📝 <text>
+    CLI->>CLI: Print final turn: [Turn] <text>
     CLI->>Router: routeIntent(transcript)
     
     alt Destructive Keyword Detected
         Router-->>CLI: DestructiveIntentError
-        CLI->>User: ⚠️ Prompt: Are you sure? (y/N)
+        CLI->>User: [Warning] Prompt: Are you sure? (y/N)
         User-->>CLI: 'y' or 'N'
     else Normal Command
         Router-->>CLI: Intent Object (JSON)
         alt Code Intent
             CLI->>Agent: handleCodeIntent(intent)
             Agent->>Disk: fs.writeFile(activeFile)
-            CLI-->>User: ✓ updated <file> (<summary>)
+            CLI-->>User: [Updated] <file> (<summary>)
         else Git Intent
             CLI-->>User: $ git <command>
             CLI->>Agent: executeGit(intent)
@@ -261,7 +261,7 @@ sequenceDiagram
             CLI-->>User: Streamed git output
         else File Switch Intent
             CLI->>CLI: activeFile = newPath
-            CLI-->>User: 📂 Active file set to <file>
+            CLI-->>User: [Active file set to] <file>
         end
     end
 ```

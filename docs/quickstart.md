@@ -1,10 +1,10 @@
-# 🚀 CodeVoice — Quickstart Guide
+# CodeVoice - Quickstart Guide
 
-Get **CodeVoice** up and running in your local development environment and VS Code integrated terminal in under 5 minutes.
+Get CodeVoice up and running in your local development environment and VS Code integrated terminal in under 5 minutes.
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
 Before starting, ensure you have the following installed:
 
@@ -36,12 +36,12 @@ Before starting, ensure you have the following installed:
    sox --version
    ```
 4. **API Keys**:
-   - **AssemblyAI API Key**: Obtain from [AssemblyAI Dashboard](https://www.assemblyai.com/dashboard/api-keys).
+   - **AssemblyAI API Key**: Obtain from the [AssemblyAI Dashboard](https://www.assemblyai.com/dashboard/api-keys).
    - **Gemini API Key**: Obtain from [Google AI Studio](https://ai.google.dev/).
 
 ---
 
-## ⚙️ Installation & Configuration
+## Installation and Configuration
 
 ### 1. Clone the repository
 ```bash
@@ -80,11 +80,11 @@ LOG_LEVEL=info
 
 ---
 
-## 🧪 Verification Tests
+## Verification Tests
 
 Before launching the full voice interface, run the automated diagnostic scripts to verify your microphone and API connectivity:
 
-### 1. Verify Agent Pipeline & Intent Routing (Offline/Synthetic)
+### 1. Verify Agent Pipeline and Intent Routing (Automated Test Suite)
 ```bash
 npm run test:agents
 ```
@@ -97,7 +97,7 @@ Runs 7/7 end-to-end integration tests:
 - Safe `git status` subprocess execution
 - Active target file switching (`file_switch`)
 
-### 2. Test Microphone & AssemblyAI Streaming
+### 2. Test Microphone and AssemblyAI Streaming
 ```bash
 npm run phase1
 ```
@@ -105,25 +105,25 @@ Records 15 seconds from your microphone, streams live PCM16 audio to AssemblyAI,
 
 ---
 
-## 💻 Running CodeVoice in VS Code
+## Running CodeVoice in VS Code
 
 For the best developer experience, use CodeVoice directly inside VS Code's integrated terminal side-by-side with your code editor:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Editor Tab: demo/sample.ts                                  │
-│                                                             │
-│ export function validateEmail(email: string): boolean {     │
-│   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);          │
-│ }  ◄── Code appears live as you speak!                      │
-├─────────────────────────────────────────────────────────────┤
-│ Integrated Terminal (Ctrl + `)                              │
-│                                                             │
-│ $ npm run dev                                               │
-│ 🎙️ CodeVoice — Multilingual Voice Interface                │
-│ 📄 Active File : demo/sample.ts                             │
-│ ● 🎙️ Listening continuously... (Speak now)                 │
-└─────────────────────────────────────────────────────────────┘
+```text
++-------------------------------------------------------------+
+| Editor Tab: demo/sample.ts                                  |
+|                                                             |
+| export function validateEmail(email: string): boolean {     |
+|   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);          |
+| }  <-- Code appears live as you speak!                      |
++-------------------------------------------------------------+
+| Integrated Terminal (Ctrl + `)                              |
+|                                                             |
+| $ npm run dev                                               |
+| CodeVoice -- Multilingual Voice Interface                   |
+| Active File : demo/sample.ts                                |
+| [Listening continuously... Speak now]                       |
++-------------------------------------------------------------+
 ```
 
 ### Step 1: Open VS Code
@@ -135,8 +135,8 @@ code .
 ### Step 2: Open Target File in Editor
 Open `demo/sample.ts` (or your preferred file) in the editor window.
 
-### Step 3: Open Integrated Terminal & Launch
-Press `` Ctrl + ` `` to open the VS Code terminal and run:
+### Step 3: Open Integrated Terminal and Launch
+Press `Ctrl + ` ` to open the VS Code terminal and run:
 ```bash
 # Target default file (demo/sample.ts)
 npm run dev
@@ -147,86 +147,86 @@ npm run dev -- --file src/utils/auth.ts
 
 ---
 
-## 🎙️ Voice Commands Walkthrough
+## Voice Commands Walkthrough
 
 Speak naturally into your microphone. You can speak English, Hindi, or mixed Hinglish without changing any mode or dropdown:
 
 ### 1. Code Generation
-- **Say**: *"Ek function banao jo email validate kare"*
+- **Say**: "Ek function banao jo email validate kare"
 - **Output**: Writes `validateEmail(email: string): boolean` directly to disk in `demo/sample.ts`.
 - **Terminal prints**:
   ```text
-  📝 [hi-en] Ek function banao jo email validate kare
-  ✓ updated demo/sample.ts (Create an email validation function...)
+  [Transcript: hi-en] Ek function banao jo email validate kare
+  [Updated] demo/sample.ts (Create an email validation function...)
   ```
 
 ### 2. Code Editing
-- **Say**: *"Iss function me domain check ka logic bhi add karo"*
+- **Say**: "Iss function me domain check ka logic bhi add karo"
 - **Output**: Modifies the existing file content on disk.
 - **Terminal prints**:
   ```text
-  📝 [hi-en] Iss function me domain check ka logic bhi add karo
-  ✓ updated demo/sample.ts (Add domain check logic...)
+  [Transcript: hi-en] Iss function me domain check ka logic bhi add karo
+  [Updated] demo/sample.ts (Add domain check logic...)
   ```
 
 ### 3. File Switching
-- **Say**: *"Switch to src/auth.ts"* or *"File badlo demo/sample.ts"*
+- **Say**: "Switch to src/auth.ts" or "File badlo demo/sample.ts"
 - **Output**: Changes the active target file context.
 - **Terminal prints**:
   ```text
-  📂 Active file set to: src/auth.ts
+  [Active file set to: src/auth.ts]
   ```
 
 ### 4. Safe Git Operations
-- **Branch**: *"Nayi branch banao feature-email"*
+- **Branch**: "Nayi branch banao feature-email"
   ```text
   $ git checkout -b feature-email
     Switched to a new branch 'feature-email'
   ```
-- **Stage**: *"Sab files add karo"*
+- **Stage**: "Sab files add karo"
   ```text
   $ git add .
   ```
-- **Commit**: *"Commit karo: add email validation"*
+- **Commit**: "Commit karo: add email validation"
   ```text
   $ git commit -m "add email validation"
     [feature-email 74b6601] add email validation
   ```
-- **Status**: *"Git status dikhao"*
+- **Status**: "Git status dikhao"
   ```text
   $ git status
   ```
 
 ### 5. Destructive Command Safety Confirmation
-- **Say**: *"Force push master branch"*
+- **Say**: "Force push master branch"
 - **Output**: Execution is paused, and an interactive confirmation prompt appears:
   ```text
-  ⚠️  Destructive action detected (force push):
+  [Warning] Destructive action detected (force push):
      "force push master branch"
-  ❓ Are you sure you want to execute this? (y/N): 
+  Are you sure you want to execute this? (y/N): 
   ```
   Type `n` to abort safely:
   ```text
-  🛡️  Action cancelled by user.
+  [Cancelled] Action cancelled by user.
   ```
 
 ---
 
-## 🛑 Stopping CodeVoice
+## Stopping CodeVoice
 
-Press `Ctrl + C` in the terminal anytime. CodeVoice will send `{"type":"Terminate"}` to AssemblyAI to close the billable streaming session cleanly and release the audio hardware:
+Press `Ctrl + C` in the terminal anytime. CodeVoice sends `{"type":"Terminate"}` to AssemblyAI to close the billable streaming session cleanly and release the audio hardware:
 ```text
-  ⏹️  Stopping CodeVoice...
-  👋 Goodbye!
+  Stopping CodeVoice...
+  Goodbye.
 ```
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 | Symptom | Probable Cause | Solution |
 |---|---|---|
 | `Microphone Error: spawn sox ENOENT` | SoX is not installed or not in your system PATH | Run `choco install sox.portable` (Windows) or `brew install sox` (macOS). Restart your terminal. |
 | `WS closed: 3006` | Invalid query parameter or keyterms format | Check your `ASSEMBLYAI_API_KEY` in `.env`. Ensure `keyterms_prompt` is formatted as a JSON string array. |
-| `ConnectTimeoutError (443)` | Node.js 24 IPv6 resolution conflict on Windows | CodeVoice enforces `dns.setDefaultResultOrder('ipv4first')` in `src/utils/config.ts`. Ensure you're running the latest code. |
+| `ConnectTimeoutError (443)` | Node.js 24 IPv6 resolution conflict on Windows | CodeVoice enforces `dns.setDefaultResultOrder('ipv4first')` in `src/utils/config.ts`. Ensure you are running the latest code. |
 | `429 Too Many Requests` | Gemini API free-tier rate limits (15 RPM) | CodeVoice automatically applies exponential backoff retries. Wait a few seconds between heavy code generations. |
