@@ -1,0 +1,30 @@
+{
+  "name": "codevoice",
+  "version": "0.1.0",
+  "description": "Multilingual voice interface for software development — AssemblyAI Hackathon 2026",
+  "main": "dist/src/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/src/cli.js",
+    "phase0": "ts-node scripts/phase0-probe.ts",
+    "phase1": "ts-node scripts/phase1-mic-test.ts",
+    "test:agents": "ts-node scripts/test-agents.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "assemblyai": "^4.9.0",
+    "dotenv": "^16.4.7",
+    "form-data": "^4.0.1",
+    "node-record-lpcm16": "^1.0.1",
+    "picocolors": "^1.1.1",
+    "shell-quote": "^1.8.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/ws": "^8.5.13",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
