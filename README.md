@@ -24,10 +24,16 @@
 
 ---
 
-## Documentation
+## Quick Navigation
 
-- [Quickstart Guide](docs/quickstart.md) - Step-by-step installation, prerequisites, SoX setup, and voice command walkthrough.
-- [System Architecture](docs/architecture.md) - Deep-dive system architecture, Mermaid diagrams, streaming protocol, and security model.
+- [Why CodeVoice Fits the Hackathon Criteria](#why-codevoice-fits-the-hackathon-criteria)
+- [VS Code Integrated Terminal Workflow](#vs-code-integrated-terminal-workflow)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Voice Command Reference](#voice-command-reference)
+- [Security Model](#security-model)
+- [Verification and Testing](#verification-and-testing)
+- [License](#license)
 
 ---
 
@@ -69,69 +75,15 @@
 
 ---
 
-## Architecture Overview
+## Architecture
 
-```text
-Microphone (16kHz PCM16 Mono via SoX)
-     |
-     v Binary chunks
-AssemblyAI Real-Time WebSocket (wss://streaming.assemblyai.com/v3/ws)
-  - Model: universal-3-5-pro
-  - keyterms_prompt: 50+ JSON-stringified developer terms
-  - prompt: Contextual developer domain steering
-  - Terminate: Clean session termination on Ctrl+C
-     |
-     v Partial and Final Turns
-Terminal Output and Intent Router (Gemini)
-     |
-     +--> Code Intent  --> Writes code directly to disk (active file)
-     |                     - VS Code editor tab updates live
-     |                     - Terminal prints: [Updated] <file> (<summary>)
-     |
-     +--> Git Intent   --> Echoes: $ git <command>
-     |                     - Executes via child_process.execFile allowlist
-     |                     - Streams output directly to terminal
-     |
-     +--> Destructive  --> Interactive prompt: [Destructive action] Are you sure? (y/N)
-```
+Detailed system context diagrams, component responsibilities, streaming WebSocket protocol flow, and security sandbox details are documented in [docs/architecture.md](docs/architecture.md).
 
 ---
 
 ## Quick Start
 
-### 1. Prerequisites
-- **Node.js 18+**
-- **SoX (Sound eXchange)** for mic capture:
-  - Windows: `choco install sox.portable` or `scoop install sox`
-  - macOS: `brew install sox`
-  - Linux: `sudo apt-get install sox libsox-fmt-all`
-- **AssemblyAI API Key** ([assemblyai.com](https://www.assemblyai.com))
-- **Gemini API Key** ([ai.google.dev](https://ai.google.dev))
-
-### 2. Setup
-```bash
-# Clone and install dependencies
-git clone https://github.com/rupamghosh2006/CodeVoice.git
-cd CodeVoice
-npm install
-
-# Configure environment keys
-cp .env.example .env
-# Fill in ASSEMBLYAI_API_KEY and GEMINI_API_KEY in .env
-```
-
-### 3. Run CodeVoice
-Inside **VS Code's Integrated Terminal** (`Ctrl + ` `):
-
-```bash
-# Start with default target file (demo/sample.ts)
-npm run dev
-
-# Or specify a custom target file
-npm run dev -- --file src/auth.ts
-```
-
-Open your target file in a VS Code editor tab beside the terminal and speak.
+Step-by-step installation instructions, cross-platform SoX setup, configuration guides, and testing walkthroughs are documented in [docs/quickstart.md](docs/quickstart.md).
 
 ---
 
@@ -153,25 +105,15 @@ Open your target file in a VS Code editor tab beside the terminal and speak.
 
 ## Security Model
 
-- **Zero Arbitrary Shell Injection**: Git commands are **never** generated as raw shell strings by the LLM. Every command routes through a strict 7-command allowlist and executes via `child_process.execFile` with arguments passed as an array.
-- **Input Sanitization**: Branch names are stripped of shell characters (`[a-zA-Z0-9/_.-]` only). Commit messages are sanitized and bounded.
-- **Safety Confirmation**: Destructive patterns (`force push`, `delete`, `reset --hard`) trigger an interactive terminal prompt before execution.
+Detailed information regarding our kernel-level argument separation (`execFile`), 7-command Git allowlist, input sanitization, pre-LLM destructive command gate, and credential management is documented in [docs/security.md](docs/security.md).
 
 ---
 
 ## Verification and Testing
 
-Run all automated integration tests:
-```bash
-# Run 7/7 automated intent, code, and git tests
-npm run test:agents
+Comprehensive test suites, execution commands, test coverage breakdowns, and mocking strategies are documented in [docs/testing.md](docs/testing.md). Live validation matrices, end-to-end test results, and evaluator checklists are documented in [docs/verification.md](docs/verification.md).
 
-# Run 15-second standalone mic test
-npm run phase1
-
-# Compile TypeScript
-npm run build
-```
+---
 
 ## License
 

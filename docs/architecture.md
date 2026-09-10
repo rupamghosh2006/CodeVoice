@@ -276,3 +276,8 @@ sequenceDiagram
    Destructive keywords (`force push`, `delete`, `remove branch`, `reset --hard`, `rebase -i`) cannot be executed silently regardless of LLM reasoning. The process stops listening and demands manual `(y/N)` confirmation on `process.stdin`.
 3. **Isolated Secret Management**:
    API keys are loaded via `.env` into private memory structures. Neither keys nor authorization tokens are logged to stdout, included in commit histories, or serialized into client-side responses.
+
+---
+
+[Back to README](../README.md)
+

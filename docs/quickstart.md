@@ -230,3 +230,8 @@ Press `Ctrl + C` in the terminal anytime. CodeVoice sends `{"type":"Terminate"}`
 | `WS closed: 3006` | Invalid query parameter or keyterms format | Check your `ASSEMBLYAI_API_KEY` in `.env`. Ensure `keyterms_prompt` is formatted as a JSON string array. |
 | `ConnectTimeoutError (443)` | Node.js 24 IPv6 resolution conflict on Windows | CodeVoice enforces `dns.setDefaultResultOrder('ipv4first')` in `src/utils/config.ts`. Ensure you are running the latest code. |
 | `429 Too Many Requests` | Gemini API free-tier rate limits (15 RPM) | CodeVoice automatically applies exponential backoff retries. Wait a few seconds between heavy code generations. |
+
+---
+
+[Back to README](../README.md)
+
