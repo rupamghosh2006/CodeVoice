@@ -46,8 +46,11 @@ CodeVoice combines voice recognition, large language model intent routing, direc
 
 The agent test suite validates real-world developer workflows using live API calls to Gemini and the local Git binary.
 
+> **Note**: API keys must be configured before running tests. Use `codevoice config set` or provide via environment variables. See [quickstart.md](quickstart.md) for details.
+
 ```bash
 npm run test:agents
+
 ```
 
 ### What It Tests
@@ -80,7 +83,12 @@ npm run test:agents
    - Utterance: `"Switch to src/auth.ts"`
    - Asserts: `type === "file_switch"`, `path === "src/auth.ts"`.
 
+8. **File Deletion Intent Routing (with Safety Bypass)**:
+   - Utterance: `"demo.ts ko delete kar do"` (with `skipSafetyGate: true`)
+   - Asserts: `type === "file_delete"`, `path === "demo.ts"`.
+
 ---
+
 
 ## 2. Running the Hardware & Microphone Streaming Test
 

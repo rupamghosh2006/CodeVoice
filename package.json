@@ -1,12 +1,19 @@
 {
-  "name": "codevoice",
+  "name": "@rupamghosh2006/codevoice",
   "version": "0.1.0",
   "description": "Multilingual voice interface for software development — AssemblyAI Hackathon 2026",
-  "main": "dist/src/cli.js",
+  "main": "dist/index.js",
+  "bin": {
+    "codevoice": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/cli.ts",
-    "start": "node dist/src/cli.js",
+    "start": "node dist/cli.js",
     "phase0": "ts-node scripts/phase0-probe.ts",
     "phase1": "ts-node scripts/phase1-mic-test.ts",
     "test:agents": "ts-node scripts/test-agents.ts"

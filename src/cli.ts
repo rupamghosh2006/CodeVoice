@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
 
@@ -5,6 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { config } from './utils/config';
+import { handleConfigCommand, ensureUserConfigInteractive } from './utils/userConfig';
 import { logger } from './utils/logger';
 import { MicCapture } from './voice/capture';
 import { StreamingClient } from './voice/streaming';
@@ -33,13 +35,69 @@ function parseActiveFile(): string {
   return config.app.targetFile;
 }
 
-let activeFile = parseActiveFile();
+function showHelp(): void {
+  console.log(`
+CodeVoice — Multilingual voice interface for software development
+
+Usage:
+  codevoice [options]
+  codevoice config <command>
+
+Options:
+  --file <path>    Target file to create/edit with voice commands (default: ./demo/sample.ts)
+  --plain          Run in plain CLI output mode (no TUI)
+  -h, --help       Show help
+  -v, --version    Show version
+
+Config Commands:
+  codevoice config set assemblyai <key>   Save AssemblyAI API key to config file
+  codevoice config set gemini <key>       Save Gemini API key to config file
+  codevoice config show                   Show currently configured keys and sources
+  codevoice config clear                  Delete global config file (~/.codevoice/config.json)
+`);
+}
+
+function showVersion(): void {
+  try {
+    const pkgPath = path.join(__dirname, '../package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      console.log(`codevoice v${pkg.version || '0.1.0'}`);
+      return;
+    }
+  } catch {}
+  console.log('codevoice v0.1.0');
+}
+
+let activeFile = '';
 let isProcessing = false;
 let isMicMuted = false;
 
 // ── Main Entrypoint ──────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  const rawArgs = process.argv.slice(2);
+
+  if (rawArgs[0] === 'config') {
+    await handleConfigCommand(rawArgs.slice(1));
+    return;
+  }
+
+  if (rawArgs.includes('--help') || rawArgs.includes('-h') || rawArgs[0] === 'help') {
+    showHelp();
+    return;
+  }
+
+  if (rawArgs.includes('--version') || rawArgs.includes('-v')) {
+    showVersion();
+    return;
+  }
+
+  // Verify or interactively prompt for API keys
+  await ensureUserConfigInteractive();
+
+  activeFile = parseActiveFile();
+
   // Ensure active file directory and target file exist
   const activeDir = path.dirname(activeFile);
   if (!fs.existsSync(activeDir)) {
@@ -48,6 +106,7 @@ async function main(): Promise<void> {
   if (!fs.existsSync(activeFile)) {
     fs.writeFileSync(activeFile, '// CodeVoice target file\n', 'utf-8');
   }
+
 
   const mic = new MicCapture({ sampleRate: 16000, channels: 1 });
   const streaming = new StreamingClient();
@@ -64,7 +123,6 @@ async function main(): Promise<void> {
     process.exit(0);
   };
 
-  const rawArgs = process.argv.slice(2);
   const isPlain =
     process.env.CODEVOICE_UI === 'plain' ||
     rawArgs.includes('--plain') ||

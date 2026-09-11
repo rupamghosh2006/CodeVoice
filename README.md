@@ -18,8 +18,9 @@
   <a href="#"><img src="https://img.shields.io/badge/Speech%20Protocol-WebSocket%20v3-blue?style=flat-square" alt="WebSocket v3" /></a>
   <a href="#"><img src="https://img.shields.io/badge/Languages-18%20%2B%20Hinglish-blueviolet?style=flat-square" alt="Languages" /></a>
   <a href="#"><img src="https://img.shields.io/badge/Vocabulary-50%2B%20Keyterms-informational?style=flat-square" alt="Keyterms" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen?style=flat-square" alt="Tests" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/npm-@rupamghosh2006%2Fcodevoice-red?style=flat-square" alt="npm" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/Tests-8%2F8%20Passing-brightgreen?style=flat-square" alt="Tests" /></a>
 </p>
 
 ---
@@ -83,7 +84,43 @@ Detailed system context diagrams, component responsibilities, streaming WebSocke
 
 ## Quick Start
 
+### Global Installation (Recommended)
+
+Install CodeVoice globally from npm:
+
+```bash
+npm install -g @rupamghosh2006/codevoice
+```
+
+
+Run CodeVoice in any project directory:
+
+```bash
+codevoice
+```
+
+On first run, CodeVoice will guide you through entering your AssemblyAI and Gemini API keys and save them securely to `~/.codevoice/config.json`.
+
+### Managing API Keys
+
+```bash
+# Set your AssemblyAI API key
+codevoice config set assemblyai <your-key>
+
+# Set your Gemini API key
+codevoice config set gemini <your-key>
+
+# View currently configured keys and sources (safely masked)
+codevoice config show
+
+# Clear saved configuration
+codevoice config clear
+```
+
+Keys can also be passed via environment variables (`ASSEMBLYAI_API_KEY` and `GEMINI_API_KEY`).
+
 Step-by-step installation instructions, cross-platform SoX setup, configuration guides, and testing walkthroughs are documented in [docs/quickstart.md](docs/quickstart.md).
+
 
 ---
 

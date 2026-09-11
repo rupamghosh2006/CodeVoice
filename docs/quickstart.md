@@ -1,6 +1,6 @@
 # CodeVoice - Quickstart Guide
 
-Get CodeVoice up and running in your local development environment and VS Code integrated terminal in under 5 minutes.
+Get CodeVoice up and running in under 5 minutes — either by installing the global npm package, or by cloning the source repository for local development.
 
 ---
 
@@ -37,42 +37,108 @@ Before starting, ensure you have the following installed:
    ```
 4. **API Keys**:
    - **AssemblyAI API Key**: Obtain from the [AssemblyAI Dashboard](https://www.assemblyai.com/dashboard/api-keys).
-   - **Gemini API Key**: Obtain from [Google AI Studio](https://ai.google.dev/).
+   - **Gemini API Key**: Obtain from [Google AI Studio](https://aistudio.google.com/apikey).
 
 ---
 
-## Installation and Configuration
+## Installation
 
-### 1. Clone the repository
+### Option A: Global npm Package (Recommended for end-users)
+
+Install CodeVoice globally from npm:
+
+```bash
+npm install -g @rupamghosh2006/codevoice
+```
+
+On first run, CodeVoice will interactively prompt you for your API keys and save them securely to `~/.codevoice/config.json`:
+
+```bash
+codevoice
+```
+
+```text
+Welcome to CodeVoice! Let's get you set up.
+
+Enter your AssemblyAI API key (get one at https://www.assemblyai.com/dashboard/api-keys):
+> ************************************
+
+Enter your Gemini API key (get one at https://aistudio.google.com/apikey):
+> ************************************
+
+✓ Saved to ~/.codevoice/config.json
+Starting CodeVoice...
+```
+
+After initial setup, subsequent runs start immediately without prompting.
+
+### Option B: Clone from Source (For contributors and local development)
+
 ```bash
 git clone https://github.com/rupamghosh2006/CodeVoice.git
 cd CodeVoice
-```
-
-### 2. Install dependencies
-```bash
 npm install
+npm run build
 ```
 
-### 3. Set up environment variables
-Copy the template `.env.example` to `.env`:
+---
+
+## Managing API Keys
+
+CodeVoice resolves API keys in this priority order:
+
+| Priority | Source | Example |
+|---|---|---|
+| 1 | Shell environment variable | `export ASSEMBLYAI_API_KEY="..."` |
+| 2 | Global config file | `~/.codevoice/config.json` |
+| 3 | Local `.env` file (dev fallback) | `.env` in current directory |
+| 4 | Interactive first-run prompt | Shown once on first launch |
+
+### Config Commands
+
+```bash
+# Set your AssemblyAI API key
+codevoice config set assemblyai <key>
+
+# Set your Gemini API key
+codevoice config set gemini <key>
+
+# View configured keys and their sources (safely masked)
+codevoice config show
+
+# Delete global config file
+codevoice config clear
+```
+
+**Example output of `codevoice config show`:**
+```text
+CodeVoice Configuration
+──────────────────────────────────────────────────
+Config file:  C:\Users\you\.codevoice\config.json (exists)
+
+AssemblyAI Key:  efe...3ad5       (from ~/.codevoice/config.json)
+Gemini Key:      AQ....hRuA       (from ~/.codevoice/config.json)
+──────────────────────────────────────────────────
+```
+
+Keys are **never printed in full** — only the first 3 and last 4 characters are shown.
+
+> **Note on file permissions**: On macOS and Linux, `~/.codevoice/config.json` is created with mode `0600` (owner-read-only). On Windows, the file is protected by your user profile directory; POSIX permissions are not meaningful and are silently skipped.
+
+### For Local Development (source clone only)
+
+Copy the template and fill in your keys:
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in your keys:
 ```env
-# AssemblyAI Credentials
 ASSEMBLYAI_API_KEY=your_assemblyai_api_key_here
 ASSEMBLYAI_WS_URL=wss://streaming.assemblyai.com/v3/ws
 ASSEMBLYAI_MODE=balanced
 ASSEMBLYAI_SPEECH_MODEL=universal-3-5-pro
-
-# Google Gemini Credentials
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.6-flash
-
-# Application Configuration
+GEMINI_MODEL=gemini-3.7-flash
 TARGET_FILE=./demo/sample.ts
 GIT_CWD=.
 LOG_LEVEL=info
@@ -82,13 +148,13 @@ LOG_LEVEL=info
 
 ## Verification Tests
 
-Before launching the full voice interface, run the automated diagnostic scripts to verify your microphone and API connectivity:
+Before launching the full voice interface, run the automated diagnostic scripts to verify your setup:
 
 ### 1. Verify Agent Pipeline and Intent Routing (Automated Test Suite)
 ```bash
 npm run test:agents
 ```
-Runs 7/7 end-to-end integration tests:
+Runs 8/8 end-to-end integration tests:
 - Hinglish code generation routing (`code_generation`)
 - Code modification routing (`code_edit`)
 - Git branch routing (`git_branch`)
@@ -96,6 +162,7 @@ Runs 7/7 end-to-end integration tests:
 - Filesystem write validation on `demo/sample.ts`
 - Safe `git status` subprocess execution
 - Active target file switching (`file_switch`)
+- File deletion routing with safety bypass (`file_delete`)
 
 ### 2. Test Microphone and AssemblyAI Streaming
 ```bash
@@ -105,9 +172,27 @@ Records 15 seconds from your microphone, streams live PCM16 audio to AssemblyAI,
 
 ---
 
-## Running CodeVoice in VS Code
+## Running CodeVoice
 
-For the best developer experience, use CodeVoice directly inside VS Code's integrated terminal side-by-side with your code editor:
+### As a global CLI (from any directory)
+
+```bash
+# Default TUI mode
+codevoice
+
+# Target a specific file
+codevoice --file src/utils/auth.ts
+
+# Plain terminal output (no TUI)
+codevoice --plain
+
+# Show help
+codevoice --help
+```
+
+### In VS Code Integrated Terminal
+
+For the best developer experience, run CodeVoice inside VS Code's integrated terminal side-by-side with your code editor:
 
 ```text
 +-------------------------------------------------------------+
@@ -119,30 +204,20 @@ For the best developer experience, use CodeVoice directly inside VS Code's integ
 +-------------------------------------------------------------+
 | Integrated Terminal (Ctrl + `)                              |
 |                                                             |
-| $ npm run dev                                               |
+| $ codevoice --file demo/sample.ts                           |
 | CodeVoice -- Multilingual Voice Interface                   |
 | Active File : demo/sample.ts                                |
 | [Listening continuously... Speak now]                       |
 +-------------------------------------------------------------+
 ```
 
-### Step 1: Open VS Code
-Open the project directory in VS Code:
+Press `Ctrl + ` `` to open the VS Code terminal and run:
 ```bash
-code .
-```
+# Installed globally
+codevoice --file demo/sample.ts
 
-### Step 2: Open Target File in Editor
-Open `demo/sample.ts` (or your preferred file) in the editor window.
-
-### Step 3: Open Integrated Terminal and Launch
-Press `Ctrl + ` ` to open the VS Code terminal and run:
-```bash
-# Target default file (demo/sample.ts)
-npm run dev
-
-# Or target any specific file in your workspace
-npm run dev -- --file src/utils/auth.ts
+# Or from source
+npm run dev -- --file demo/sample.ts
 ```
 
 ---
@@ -153,7 +228,7 @@ Speak naturally into your microphone. You can speak English, Hindi, or mixed Hin
 
 ### 1. Code Generation
 - **Say**: "Ek function banao jo email validate kare"
-- **Output**: Writes `validateEmail(email: string): boolean` directly to disk in `demo/sample.ts`.
+- **Output**: Writes `validateEmail(email: string): boolean` directly to disk.
 - **Terminal prints**:
   ```text
   [Transcript: hi-en] Ek function banao jo email validate kare
@@ -163,62 +238,31 @@ Speak naturally into your microphone. You can speak English, Hindi, or mixed Hin
 ### 2. Code Editing
 - **Say**: "Iss function me domain check ka logic bhi add karo"
 - **Output**: Modifies the existing file content on disk.
-- **Terminal prints**:
-  ```text
-  [Transcript: hi-en] Iss function me domain check ka logic bhi add karo
-  [Updated] demo/sample.ts (Add domain check logic...)
-  ```
 
 ### 3. File Switching
 - **Say**: "Switch to src/auth.ts" or "File badlo demo/sample.ts"
 - **Output**: Changes the active target file context.
-- **Terminal prints**:
-  ```text
-  [Active file set to: src/auth.ts]
-  ```
 
 ### 4. Safe Git Operations
-- **Branch**: "Nayi branch banao feature-email"
-  ```text
-  $ git checkout -b feature-email
-    Switched to a new branch 'feature-email'
-  ```
-- **Stage**: "Sab files add karo"
-  ```text
-  $ git add .
-  ```
-- **Commit**: "Commit karo: add email validation"
-  ```text
-  $ git commit -m "add email validation"
-    [feature-email 74b6601] add email validation
-  ```
-- **Status**: "Git status dikhao"
-  ```text
-  $ git status
-  ```
+- **Branch**: "Nayi branch banao feature-email" → `git checkout -b feature-email`
+- **Stage**: "Sab files add karo" → `git add .`
+- **Commit**: "Commit karo: add email validation" → `git commit -m "add email validation"`
+- **Status**: "Git status dikhao" → `git status`
 
 ### 5. Destructive Command Safety Confirmation
 - **Say**: "Force push master branch"
-- **Output**: Execution is paused, and an interactive confirmation prompt appears:
+- **Output**: Execution is paused and an interactive confirmation appears:
   ```text
   [Warning] Destructive action detected (force push):
      "force push master branch"
-  Are you sure you want to execute this? (y/N): 
-  ```
-  Type `n` to abort safely:
-  ```text
-  [Cancelled] Action cancelled by user.
+  Are you sure you want to execute this? (y/N):
   ```
 
 ---
 
 ## Stopping CodeVoice
 
-Press `Ctrl + C` in the terminal anytime. CodeVoice sends `{"type":"Terminate"}` to AssemblyAI to close the billable streaming session cleanly and release the audio hardware:
-```text
-  Stopping CodeVoice...
-  Goodbye.
-```
+Press `Ctrl + C` anytime. CodeVoice sends `{"type":"Terminate"}` to AssemblyAI to close the billable streaming session cleanly and release the audio hardware.
 
 ---
 
@@ -226,12 +270,12 @@ Press `Ctrl + C` in the terminal anytime. CodeVoice sends `{"type":"Terminate"}`
 
 | Symptom | Probable Cause | Solution |
 |---|---|---|
-| `Microphone Error: spawn sox ENOENT` | SoX is not installed or not in your system PATH | Run `choco install sox.portable` (Windows) or `brew install sox` (macOS). Restart your terminal. |
-| `WS closed: 3006` | Invalid query parameter or keyterms format | Check your `ASSEMBLYAI_API_KEY` in `.env`. Ensure `keyterms_prompt` is formatted as a JSON string array. |
-| `ConnectTimeoutError (443)` | Node.js 24 IPv6 resolution conflict on Windows | CodeVoice enforces `dns.setDefaultResultOrder('ipv4first')` in `src/utils/config.ts`. Ensure you are running the latest code. |
-| `429 Too Many Requests` | Gemini API free-tier rate limits (15 RPM) | CodeVoice automatically applies exponential backoff retries. Wait a few seconds between heavy code generations. |
+| `Microphone Error: spawn sox ENOENT` | SoX not installed or not in PATH | Run `choco install sox.portable` (Windows) or `brew install sox` (macOS). Restart terminal. |
+| `WS closed: 3006` | Invalid API key or keyterms format | Run `codevoice config show` to verify keys are set. |
+| `ConnectTimeoutError (443)` | Node.js IPv6 resolution conflict on Windows | CodeVoice enforces `dns.setDefaultResultOrder('ipv4first')`. Ensure you are on the latest version. |
+| `429 Too Many Requests` | Gemini API free-tier rate limits (15 RPM) | CodeVoice applies automatic exponential backoff. Wait a few seconds between commands. |
+| Keys not found on first run | No `~/.codevoice/config.json` and no env vars | Run `codevoice config set assemblyai <key>` and `codevoice config set gemini <key>`. |
 
 ---
 
 [Back to README](../README.md)
-

@@ -7,7 +7,6 @@ import { config } from '../utils/config';
 import { logger } from '../utils/logger';
 import type { CodeIntent } from '../intent/schema';
 
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
 const CODE_SYSTEM_PROMPT = `You are a TypeScript/Node.js expert coding assistant integrated into CodeVoice.
 You receive:
@@ -27,14 +26,22 @@ RULES:
 - Export all top-level functions
 - Keep code concise and production-quality`;
 
-const model = genAI.getGenerativeModel({
-  model: config.gemini.model,
-  systemInstruction: CODE_SYSTEM_PROMPT,
-  generationConfig: {
-    temperature: 0.2,
-    maxOutputTokens: 2048,
-  },
-});
+let _codeModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+function getCodeModel() {
+  if (!_codeModel) {
+    const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+    _codeModel = genAI.getGenerativeModel({
+      model: config.gemini.model,
+      systemInstruction: CODE_SYSTEM_PROMPT,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 2048,
+      },
+    });
+  }
+  return _codeModel;
+}
+
 
 export interface CodeAgentResult {
   /** What operation was performed */
@@ -75,7 +82,7 @@ export async function handleCodeIntent(
   let result;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      result = await model.generateContent(prompt);
+      result = await getCodeModel().generateContent(prompt);
       break;
     } catch (err: any) {
       if ((err?.status === 429 || err?.status === 503 || String(err).includes('429') || String(err).includes('503')) && attempt < 4) {

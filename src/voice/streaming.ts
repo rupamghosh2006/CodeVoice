@@ -2,7 +2,8 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import { config } from '../utils/config';
 import { logger } from '../utils/logger';
-import { KEYTERMS } from '../../demo/keyterms';
+import { KEYTERMS } from '../constants/keyterms';
+
 
 // ── Server message types (per AssemblyAI streaming v3 protocol) ───────────────
 

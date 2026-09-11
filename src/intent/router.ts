@@ -7,7 +7,6 @@ import { logger } from '../utils/logger';
 import type { Intent } from './schema';
 import { DESTRUCTIVE_KEYWORDS } from './schema';
 
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
 const SYSTEM_PROMPT = `You are an intent router for CodeVoice, a voice-driven developer tool.
 Your job: classify a developer voice command into a structured JSON intent.
@@ -70,16 +69,24 @@ const INTENT_SCHEMA = {
   required: ['type'],
 };
 
-const model = genAI.getGenerativeModel({
-  model: config.gemini.model,
-  systemInstruction: SYSTEM_PROMPT,
-  generationConfig: {
-    responseMimeType: 'application/json',
-    responseSchema: INTENT_SCHEMA as any,
-    temperature: 0.1,
-    maxOutputTokens: 1024,
-  },
-});
+let _routerModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+function getRouterModel() {
+  if (!_routerModel) {
+    const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+    _routerModel = genAI.getGenerativeModel({
+      model: config.gemini.model,
+      systemInstruction: SYSTEM_PROMPT,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: INTENT_SCHEMA as any,
+        temperature: 0.1,
+        maxOutputTokens: 1024,
+      },
+    });
+  }
+  return _routerModel;
+}
+
 
 export class UnknownIntentError extends Error {
   constructor(public readonly rawTranscript: string) {
@@ -119,7 +126,7 @@ export async function routeIntent(
   let result;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
-      result = await model.generateContent(transcript);
+      result = await getRouterModel().generateContent(transcript);
       break;
     } catch (err: any) {
       if ((err?.status === 429 || err?.status === 503 || String(err).includes('429') || String(err).includes('503')) && attempt < 4) {

@@ -143,9 +143,40 @@ Code modification actions are restricted to explicit target files on the local f
 
 ## 6. Secret and Credential Management
 
-- **Zero Secret Commits**: API keys for AssemblyAI and Google Gemini are stored in `.env`, which is permanently excluded from version control via `.gitignore`.
-- **In-Memory Configuration**: Environment variables are parsed at startup via `src/utils/config.ts` into frozen in-memory configurations. Keys are never printed to terminal logs, written to disk, or included in diagnostics.
-- **Direct Protocol Authentication**: The AssemblyAI API key is passed strictly as a WebSocket upgrade header (`Authorization: <api-key>`), never via URL query parameters where it could appear in server access logs.
+CodeVoice uses a **per-user global configuration system** to store and resolve API keys securely, decoupled from any project directory.
+
+### Key Resolution Priority
+
+API keys are resolved in the following strict priority order at runtime:
+
+| Priority | Source | Description |
+|---|---|---|
+| 1 | **Shell environment variable** | `ASSEMBLYAI_API_KEY` / `GEMINI_API_KEY` — used directly with no disk access |
+| 2 | **User config file** | `~/.codevoice/config.json` — set once via `codevoice config set` |
+| 3 | **Local `.env` file** | Development fallback when running from a cloned source directory |
+| 4 | **Interactive prompt** | First-run wizard with masked terminal input, saves to config file |
+
+### Config File Security
+
+- **Location**: `~/.codevoice/config.json` (e.g. `C:\Users\<name>\.codevoice\config.json` on Windows).
+- **File permissions**: Created with mode `0600` (owner-read-only) on macOS and Linux via `fs.chmodSync`. On Windows, the file is protected by user profile directory ownership; POSIX chmod is silently skipped.
+- **Directory permissions**: `~/.codevoice/` is created with mode `0700`.
+- **Never printed in full**: `codevoice config show` displays only a masked preview (e.g. `efe...3ad5`). Full key values are never echoed to the terminal, written to logs, or included in diagnostics.
+
+### Published Package Security
+
+- **`.env` excluded from npm tarball**: The `.npmignore` file and `"files": ["dist"]` field in `package.json` jointly ensure that `.env`, `.env.*`, source code, and test scripts are never shipped in the published package.
+- **No hardcoded credentials**: The published package at `@rupamghosh2006/codevoice` contains only compiled `dist/` output — no secrets, no dev tokens, no internal tooling.
+
+### WebSocket Authentication
+
+The AssemblyAI API key is passed strictly as a WebSocket upgrade header:
+```
+Authorization: <api-key>
+```
+It is never embedded in URL query parameters where it could appear in server access logs or browser history.
+
+
 
 ---
 
