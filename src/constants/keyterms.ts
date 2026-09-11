@@ -92,6 +92,8 @@ export const KEYTERMS: string[] = [
 
   // Git
   'branch',
+  'delete branch',
+  'branch delete',
   'checkout',
   'commit',
   'stash',

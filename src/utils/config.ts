@@ -1,6 +1,9 @@
 import * as dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
 
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import * as path from 'path';
 import { resolveApiKey } from './userConfig';
 
@@ -46,7 +49,7 @@ export const config = {
         }
         return key;
       },
-      model: optional_env('GEMINI_MODEL', 'gemini-3.7-flash'),
+      model: optional_env('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
     };
   },
   get app() {

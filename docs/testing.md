@@ -34,7 +34,8 @@ CodeVoice combines voice recognition, large language model intent routing, direc
 
 | Test Target | Command | Primary Script | Purpose |
 |---|---|---|---|
-| **Agent & Intent Suite** | `npm run test:agents` | `scripts/test-agents.ts` | End-to-end routing, code generation, git execution, safety gates |
+| **Agent & Intent Suite** | `npm run test:agents` | `scripts/test-agents.ts` | End-to-end routing, code generation, git execution, safety gates (9 tests) |
+| **Transliteration & Latency** | `npm run test:translit` | `scripts/test-transliteration.ts` | Devanagari detection, zero-latency English bypass, Romanization benchmark |
 | **Microphone Pipeline** | `npm run phase1` | `scripts/phase1-mic-test.ts` | 15-second live capture, streaming partials, AssemblyAI WebSocket |
 | **Endpoint Diagnostic** | `npm run phase0` | `scripts/phase0-probe.ts` | Diagnostic probe comparing HTTP dictation and WebSocket streaming |
 | **Type Verification** | `npx tsc --noEmit` | N/A | Strict TypeScript compilation check without emitting output |
@@ -87,10 +88,33 @@ npm run test:agents
    - Utterance: `"demo.ts ko delete kar do"` (with `skipSafetyGate: true`)
    - Asserts: `type === "file_delete"`, `path === "demo.ts"`.
 
+9. **Git Branch Deletion (Routing, Safety Gate & Execution)**:
+   - 9a: Utterance `"Delete branch feature-temp"` is intercepted pre-LLM by the safety gate (`"delete branch"`).
+   - 9b: Routed with `skipSafetyGate: true` → `type === "git_branch_delete"`, `name === "feature-temp"`.
+   - 9c: Subprocess execution via `executeGit` creates the branch, checks out `main`, and force-deletes it with exit code 0 (`git branch -D feature-temp`).
+
 ---
 
+## 2. Running the Transliteration & Latency Benchmark Suite
 
-## 2. Running the Hardware & Microphone Streaming Test
+CodeVoice includes a dedicated transliteration test and benchmarking suite to validate seamless bilingual Hindi/English handling:
+
+```bash
+npm run test:translit
+```
+
+### What It Tests
+
+1. **Devanagari Unicode Detection (`hasDevanagari`)**: Validates positive matching on pure Devanagari and mixed sentences, with zero false positives on English text and Git commands.
+2. **Pure English Zero-Latency Bypass**: Confirms that English speech bypasses transliteration with 0ms added latency and untouched text.
+3. **Pure Devanagari Romanization**: Verifies that Hindi spoken commands (e.g. `"एक फंक्शन बनाओ"`) are converted to clean, natural Roman Hinglish (`"Ek function banao"`).
+4. **Preservation of Technical Identifiers**: Confirms that code keywords, React hooks (`useEffect`), API terms, and variable names are strictly preserved during transliteration.
+5. **Git Command Romanization & Routing**: Verifies that Devanagari Git commands (e.g. `"नयी branch बनाो feature-login"`) transliterate correctly and route to `git_branch`.
+6. **Destructive Safety Gate Integration**: Validates that transliterated destructive statements trip the pre-LLM safety gate.
+
+---
+
+## 3. Running the Hardware & Microphone Streaming Test
 
 To verify audio hardware, SoX recording, and AssemblyAI's streaming WebSocket protocol without running the full CLI:
 
@@ -109,7 +133,7 @@ npm run phase1
 
 ---
 
-## 3. How to Add New Test Cases
+## 4. How to Add New Test Cases
 
 New integration test cases should be added to `scripts/test-agents.ts`.
 

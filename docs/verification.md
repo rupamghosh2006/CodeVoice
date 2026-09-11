@@ -6,18 +6,19 @@ This document details the verification methodology, test suites, integration tes
 
 ## Test Suites Overview
 
-CodeVoice includes four distinct verification layers:
+CodeVoice includes five distinct verification layers:
 
-1. **Automated End-to-End Test Suite (`npm run test:agents`)**: Tests multilingual intent routing, destructive keyword interception, direct disk file writes, Git subprocess execution, and active file switching against live Gemini and Git binaries.
-2. **Real-time Microphone Pipeline Test (`npm run phase1`)**: Validates continuous 16kHz mono PCM16 microphone capture via SoX, WebSocket session handshake with AssemblyAI's `universal-3-5-pro`, streaming partial turns, and clean session termination.
-3. **Beta Endpoint Diagnostic Probe (`npm run phase0`)**: Verifies HTTP multipart behavior on `https://dictation.assemblyai.com/transcribe` versus WebSocket streaming on `wss://streaming.assemblyai.com/v3/ws`.
-4. **TypeScript Compiler Verification (`npm run build`)**: Verifies strict type-checking across all source modules without emitting errors.
+1. **Automated End-to-End Test Suite (`npm run test:agents`)**: Tests multilingual intent routing, destructive keyword interception, direct disk file writes, Git subprocess execution, active file switching, and branch deletion against live Gemini and Git binaries (9 tests).
+2. **Transliteration & Latency Benchmark Suite (`npm run test:translit`)**: Validates Devanagari detection, Roman-script Hinglish transliteration via Gemini, zero-overhead passthrough on English, and technical identifier preservation.
+3. **Real-time Microphone Pipeline Test (`npm run phase1`)**: Validates continuous 16kHz mono PCM16 microphone capture via SoX, WebSocket session handshake with AssemblyAI's `universal-3-5-pro`, streaming partial turns, and clean session termination.
+4. **Beta Endpoint Diagnostic Probe (`npm run phase0`)**: Verifies HTTP multipart behavior on `https://dictation.assemblyai.com/transcribe` versus WebSocket streaming on `wss://streaming.assemblyai.com/v3/ws`.
+5. **TypeScript Compiler Verification (`npm run build`)**: Verifies strict type-checking across all source modules without emitting errors.
 
 ---
 
 ## 1. Automated Integration Test Suite (`test:agents`)
 
-The primary automated test runner is located in `scripts/test-agents.ts`. It executes seven real-world developer scenarios sequentially against live services.
+The primary automated test runner is located in `scripts/test-agents.ts`. It executes nine real-world developer scenarios sequentially against live services.
 
 ### Test Matrix and Validation Results
 
@@ -30,6 +31,8 @@ The primary automated test runner is located in `scripts/test-agents.ts`. It exe
 | **Test 5** | Code Agent Filesystem Write | Create `validateEmail` function | Generates TypeScript and appends to `demo/sample.ts` | File modified on disk, contains valid `validateEmail` declaration | PASSED |
 | **Test 6** | Git Agent Subprocess Execution | `git_status` intent | Executes `git status` via `execFile` | Exit code 0, repository status output captured and displayed | PASSED |
 | **Test 7** | Dynamic File Switching | "Switch to src/auth.ts" | `file_switch` (`path: "src/auth.ts"`) | Routed to `file_switch`, target file pointer updated | PASSED |
+| **Test 8** | File Deletion Routing | "demo.ts ko delete kar do" | `file_delete` (`path: "demo.ts"`) | Intercepted pre-LLM, routed with bypass, path extracted | PASSED |
+| **Test 9** | Git Branch Deletion & Safety | "Delete branch feature-temp" | `git_branch_delete` (`name: "feature-temp"`) | Intercepted pre-LLM, routed with bypass, executed `git branch -D` | PASSED |
 
 ### Execution Command
 ```bash
@@ -87,14 +90,53 @@ Result: {
   "type": "file_switch",
   "path": "src/auth.ts"
 }
-[PASSED] Test 7
+[PASS] Test 7 Passed
 
-ALL TESTS PASSED: Intent router, Code agent, and Git agent are fully functioning.
+Test 8: File Delete (Safety Interception & Routing)...
+[OK] Successfully intercepted file deletion: "delete"
+Result: {
+  "type": "file_delete",
+  "path": "demo.ts"
+}
+[PASS] Test 8 Passed
+
+Test 9: Git Branch Delete (Routing, Safety & Execution)...
+[OK] Successfully intercepted branch deletion: "delete branch"
+Result: {
+  "type": "git_branch_delete",
+  "name": "feature-temp"
+}
+Git branch delete output: Deleted branch feature-temp (was 23ca503).
+[PASS] Test 9 Passed
+
+[SUCCESS] ALL TESTS PASSED! Intent router, Code agent, Git agent, and File operations are fully functioning.
 ```
 
 ---
 
-## 2. Real-Time Microphone & AssemblyAI Streaming (`phase1`)
+## 2. Transliteration & Latency Benchmark Suite (`test:translit`)
+
+The transliteration benchmark suite is located in `scripts/test-transliteration.ts`. It verifies bilingual Hindi/English handling and benchmarks the added latency.
+
+### Test Matrix and Validation Results
+
+| Test Number | Scenario | Input Utterance | Expected Result | Status |
+|---|---|---|---|---|
+| **Test 1** | Devanagari Detection | "एक फंक्शन बनाओ", "useEffect के अंदर call add करो" | `hasDevanagari() === true`; zero false positives on English / Git | PASSED |
+| **Test 2** | Pure English Bypass | "Create an email validation function" | `transliterated: false`, latency: `0ms` | PASSED |
+| **Test 3** | Pure Hindi Devanagari | "एक फंक्शन बनाओ" | Romanized: "Ek function banao" | PASSED |
+| **Test 4** | Mixed Hinglish & Technical Terms | "useEffect के अंदर एक API call add करो" | Preserves `useEffect` and `API` | PASSED |
+| **Test 5** | Devanagari Git Routing | "नयी branch बनाओ feature-login" | Romanized and routed to `git_branch` (`feature-login`) | PASSED |
+| **Test 6** | Safety Gate on Transliterated Input | "force push करो master branch pe" | Romanized and trips `force push` pre-LLM gate | PASSED |
+
+### Execution Command
+```bash
+npm run test:translit
+```
+
+---
+
+## 3. Real-Time Microphone & AssemblyAI Streaming (`phase1`)
 
 The standalone microphone pipeline test is located in `scripts/phase1-mic-test.ts`.
 
@@ -119,7 +161,7 @@ npm run phase1
 
 ---
 
-## 3. Beta Endpoint Diagnostic Probe (`phase0`)
+## 4. Beta Endpoint Diagnostic Probe (`phase0`)
 
 The diagnostic script `scripts/phase0-probe.ts` was used during Phase 0 to evaluate endpoint architecture.
 
@@ -136,7 +178,7 @@ The diagnostic script `scripts/phase0-probe.ts` was used during Phase 0 to evalu
 
 ---
 
-## 4. TypeScript Compiler and Build Verification
+## 5. TypeScript Compiler and Build Verification
 
 CodeVoice enforces strict TypeScript compilation rules (`strict: true`, `noImplicitAny: true`, `target: ES2022`).
 

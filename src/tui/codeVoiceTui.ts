@@ -1,9 +1,10 @@
 import * as path from 'node:path';
 import type { ConvoTuiCtrl as ConvoTuiCtrlClass } from '@convo-lang/tui/ConvoTuiCtrl';
-import type { ScreenDef, SpriteDef, TuiConsole, TuiTheme, Sprite } from '@convo-lang/tui/tui-types';
+import type { ScreenDef, SpriteDef, TuiConsole, TuiTheme } from '@convo-lang/tui/tui-types';
 import { logger } from '../utils/logger';
+import { config } from '../utils/config';
 import { patchConvoTuiCtrl } from './patchTui';
-import type { CodeVoiceView, CodeVoiceTuiCallbacks, ActivityLogEntry } from './types';
+import type { CodeVoiceView, CodeVoiceTuiCallbacks, ActivityLogEntry, NarrativeEvent, NarrativeEventType } from './types';
 
 export async function loadConvoTuiCtrl(): Promise<typeof ConvoTuiCtrlClass> {
   const mod = await (new Function('return import("@convo-lang/tui/ConvoTuiCtrl")')());
@@ -11,7 +12,7 @@ export async function loadConvoTuiCtrl(): Promise<typeof ConvoTuiCtrlClass> {
   return mod.ConvoTuiCtrl;
 }
 
-export { ActivityLogEntry, CodeVoiceTuiCallbacks, CodeVoiceView };
+export { ActivityLogEntry, CodeVoiceTuiCallbacks, CodeVoiceView, NarrativeEvent, NarrativeEventType };
 
 export class CodeVoiceTui implements CodeVoiceView {
   private ctrl!: ConvoTuiCtrlClass;
@@ -20,10 +21,10 @@ export class CodeVoiceTui implements CodeVoiceView {
   private isMuted = false;
   private isDisposed = false;
   private exitCleanupHandler: (() => void) | null = null;
-  private logEntries: ActivityLogEntry[] = [];
+  private narrativeEvents: NarrativeEvent[] = [];
   private confirmationResolver: ((confirmed: boolean) => void) | null = null;
   private fileSwitchResolver: ((filePath: string | null) => void) | null = null;
-  private maxLogs = 80;
+  private maxLogs = 60;
 
   constructor(initialFile: string, callbacks: CodeVoiceTuiCallbacks = {}) {
     this.activeFile = initialFile;
@@ -34,15 +35,15 @@ export class CodeVoiceTui implements CodeVoiceView {
     const ConvoTuiCtrl = await loadConvoTuiCtrl();
 
     const theme: TuiTheme = {
-      foreground: '#e2e8f0',
-      background: '#090d16',
-      panel: '#131b2e',
-      accent: '#38bdf8',
-      active: '#fbbf24',
-      success: '#22c55e',
-      warning: '#f59e0b',
-      danger: '#ef4444',
-      muted: '#64748b',
+      foreground: '#e2e8f0', // off-white
+      background: '#090d16', // deep dark
+      panel: '#131b2e',      // navy
+      accent: '#38bdf8',     // cyan / sky blue ("Heard")
+      active: '#fbbf24',     // amber
+      success: '#22c55e',    // emerald green ("Action Taken")
+      warning: '#f59e0b',    // amber warning
+      danger: '#ef4444',     // red ("Error")
+      muted: '#64748b',      // slate gray
     };
 
     const mainScreen: ScreenDef = {
@@ -75,23 +76,6 @@ export class CodeVoiceTui implements CodeVoiceView {
       screens: [mainScreen, confirmScreen, fileSwitchScreen],
     });
 
-    // Wire logger to TUI activity log
-    logger.setSink((level, msg) => {
-      let tag = 'LOG';
-      let color = 'muted';
-      if (level === 'error') {
-        tag = 'ERR';
-        color = 'danger';
-      } else if (level === 'warn') {
-        tag = 'WARN';
-        color = 'warning';
-      } else if (level === 'info') {
-        tag = 'INFO';
-        color = 'accent';
-      }
-      this.logActivity(tag, msg, color);
-    });
-
     this.exitCleanupHandler = () => this.dispose();
     process.once('exit', this.exitCleanupHandler);
     process.once('SIGINT', this.exitCleanupHandler);
@@ -106,17 +90,18 @@ export class CodeVoiceTui implements CodeVoiceView {
   }
 
   private buildMainRoot(): SpriteDef {
+    const relFile = path.relative(process.cwd(), this.activeFile);
     return {
       id: 'main-root',
       layout: 'column',
       bg: 'background',
       children: [
-        // ── Header ──────────────────────────────────────────
+        // ── Minimal Header ───────────────────────────────────────
         {
           id: 'header-box',
           layout: 'column',
           bg: 'panel',
-          border: { bottom: 'accent' },
+          border: { bottom: 'muted' },
           borderStyle: 'rounded',
           padding: { left: 1, right: 1, top: 0, bottom: 0 },
           children: [
@@ -126,37 +111,27 @@ export class CodeVoiceTui implements CodeVoiceView {
               children: [
                 {
                   id: 'app-title',
-                  text: ' [ CodeVoice ] -- Multilingual Voice Development Interface ',
+                  text: ' [ CodeVoice ]  Voice Development Interface ',
                   color: 'accent',
                   flex: 1,
                 },
                 {
                   id: 'status-badge',
-                  text: ' [ CONNECTING ] ',
-                  color: 'warning',
-                  border: 'warning',
+                  text: ' [ ● LISTENING ] ',
+                  color: 'success',
+                  border: 'success',
                 },
               ],
             },
             {
               id: 'header-meta-row',
               layout: 'row',
-              gap: 2,
               children: [
                 {
                   id: 'engine-label',
-                  text: 'Engine: AssemblyAI universal-3-5-pro (Streaming)',
+                  text: `Target: ${relFile}  •  AssemblyAI universal-3-5-pro  •  Gemini (${config.gemini.model})`,
                   color: 'muted',
-                },
-                {
-                  id: 'router-label',
-                  text: 'Router: Gemini 2.5 Flash',
-                  color: 'muted',
-                },
-                {
-                  id: 'lang-label',
-                  text: 'Languages: English, Hindi, Hinglish',
-                  color: 'muted',
+                  flex: 1,
                 },
               ],
             },
@@ -173,7 +148,7 @@ export class CodeVoiceTui implements CodeVoiceView {
           children: [
             {
               id: 'active-file-display',
-              text: ` Target: ${path.relative(process.cwd(), this.activeFile)} `,
+              text: ` Target: ${relFile} `,
               color: 'accent',
               border: 'muted',
             },
@@ -213,57 +188,26 @@ export class CodeVoiceTui implements CodeVoiceView {
           ],
         },
 
-        // ── Live Voice Panel ────────────────────────────────
+        // ── Live Speech Status Bar ────────────────────────────────
         {
-          id: 'voice-box',
-          layout: 'column',
-          border: 'accent',
-          borderStyle: 'rounded',
-          bg: 'panel',
+          id: 'live-speech-box',
+          layout: 'row',
           padding: { left: 1, right: 1, top: 0, bottom: 0 },
-          margin: { bottom: 1 },
+          margin: { top: 0, bottom: 0 },
           children: [
             {
-              id: 'voice-header-row',
-              layout: 'row',
-              children: [
-                {
-                  id: 'voice-header-title',
-                  text: 'LIVE VOICE TRANSCRIPTION',
-                  color: 'accent',
-                  flex: 1,
-                },
-                {
-                  id: 'audio-meter',
-                  text: '[===|===] STREAM ACTIVE',
-                  color: 'success',
-                },
-              ],
-            },
-            {
-              id: 'interim-transcript',
-              text: '>> (Listening for speech...)',
-              color: 'foreground',
-              textWrap: 'wrap',
-            },
-            {
-              id: 'final-transcript',
-              text: 'Last Turn: (None)',
-              color: 'active',
-              textWrap: 'wrap',
-            },
-            {
-              id: 'disfluent-transcript',
-              text: '',
+              id: 'live-transcript',
+              text: '🎙  Listening... (speak naturally in English or Hindi)',
               color: 'muted',
               textWrap: 'wrap',
+              flex: 1,
             },
           ],
         },
 
-        // ── Activity Log Panel ──────────────────────────────
+        // ── Narrative Event Feed (The demo surface) ───────────────
         {
-          id: 'activity-panel',
+          id: 'narrative-panel',
           layout: 'column',
           flex: 1,
           border: 'muted',
@@ -274,10 +218,9 @@ export class CodeVoiceTui implements CodeVoiceView {
           isButton: true,
           children: [
             {
-              id: 'activity-header',
-              text: '--- ACTIVITY AND EXECUTION LOG ---',
+              id: 'narrative-header',
+              text: '── NARRATIVE LOG ─────────────────────────────────────────────────────────────',
               color: 'muted',
-              align: 'center',
             },
           ],
         },
@@ -290,13 +233,13 @@ export class CodeVoiceTui implements CodeVoiceView {
           children: [
             {
               id: 'footer-shortcuts',
-              text: 'Shortcuts: Tab / Shift+Tab = Navigate | Enter = Activate | Scroll = Mouse Wheel or Arrows',
+              text: 'Shortcuts: Tab / Shift+Tab = Navigate | Enter = Click | Scroll = Mouse Wheel or Arrows',
               color: 'muted',
               flex: 1,
             },
             {
-              id: 'footer-exit',
-              text: 'Exit: Click [Quit] or Ctrl+C',
+              id: 'footer-log-status',
+              text: 'Logs: codevoice.log',
               color: 'muted',
             },
           ],
@@ -463,12 +406,19 @@ export class CodeVoiceTui implements CodeVoiceView {
     let text = ` [ ${status} ] `;
     if (status === 'LISTENING') {
       color = 'success';
+      text = ' [ ● LISTENING ] ';
     } else if (status === 'PROCESSING') {
-      color = 'accent';
+      color = 'active';
+      text = ' [ ⚡ PROCESSING ] ';
     } else if (status === 'MUTED') {
       color = 'warning';
+      text = ' [ ⏸ MUTED ] ';
     } else if (status === 'ERROR') {
       color = 'danger';
+      text = ' [ ❌ ERROR ] ';
+    } else if (status === 'CONNECTING') {
+      color = 'warning';
+      text = ' [ ⏳ CONNECTING ] ';
     }
 
     this.ctrl.updateSprite('status-badge', (sprite) => {
@@ -476,34 +426,84 @@ export class CodeVoiceTui implements CodeVoiceView {
       sprite.color = color;
       sprite.border = color;
     });
+
+    if (status === 'MUTED') {
+      this.ctrl.updateSprite('btn-mute', (sprite) => {
+        sprite.text = ' [ Resume Mic ] ';
+        sprite.border = 'warning';
+      });
+    } else if (status === 'LISTENING') {
+      this.ctrl.updateSprite('btn-mute', (sprite) => {
+        sprite.text = ' [ Mute Mic ] ';
+        sprite.border = 'accent';
+      });
+    }
+
+    if (status === 'LISTENING') {
+      this.ctrl.updateSprite('live-transcript', (sprite) => {
+        sprite.text = '🎙  Listening... (speak naturally in English or Hindi)';
+        sprite.color = 'muted';
+      });
+    } else if (status === 'PROCESSING') {
+      this.ctrl.updateSprite('live-transcript', (sprite) => {
+        sprite.text = '⚡  Processing instruction...';
+        sprite.color = 'active';
+      });
+    }
   }
 
   updateLiveTranscript(text: string): void {
     const trimmed = text.trim();
-    this.ctrl.updateSprite('interim-transcript', (sprite) => {
-      sprite.text = trimmed ? `>> ${trimmed}` : '>> (Listening for speech...)';
+    this.ctrl.updateSprite('live-transcript', (sprite) => {
+      if (trimmed) {
+        sprite.text = `🎙  >> "${trimmed}"`;
+        sprite.color = 'accent';
+      } else {
+        sprite.text = '🎙  Listening... (speak naturally in English or Hindi)';
+        sprite.color = 'muted';
+      }
     });
   }
 
-  setFinalTranscript(finalText: string, language?: string, rawText?: string): void {
-    const langTag = language ? `[${language.toUpperCase()}] ` : '';
-    this.ctrl.updateSprite('interim-transcript', (sprite) => {
-      sprite.text = '>> (Processing turn...)';
-      return false; // batch render
+  recordHeard(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    this.narrativeEvents.push({
+      text: `🎙  Heard: "${trimmed}"`,
+      type: 'heard',
+      timestamp: this.formatTime(),
     });
-    this.ctrl.updateSprite('final-transcript', (sprite) => {
-      sprite.text = `Last Turn: ${langTag}"${finalText}"`;
-      return false; // batch render
+    if (this.narrativeEvents.length > this.maxLogs) {
+      this.narrativeEvents.shift();
+    }
+    this.ctrl.updateSprite('live-transcript', (sprite) => {
+      sprite.text = '⚡  Executing instruction...';
+      sprite.color = 'active';
     });
+    this.renderNarrativePanel();
+  }
 
+  recordAction(actionText: string, type: NarrativeEventType = 'code'): void {
+    const trimmed = actionText.trim();
+    if (!trimmed) return;
+    this.narrativeEvents.push({
+      text: trimmed,
+      type,
+      timestamp: this.formatTime(),
+    });
+    if (this.narrativeEvents.length > this.maxLogs) {
+      this.narrativeEvents.shift();
+    }
+    this.renderNarrativePanel();
+  }
+
+  setFinalTranscript(finalText: string, _language?: string, rawText?: string, originalDevanagari?: string): void {
+    this.recordHeard(finalText);
+    if (originalDevanagari && originalDevanagari.trim() !== finalText.trim()) {
+      logger.info(`Devanagari transcript: "${originalDevanagari.trim()}"`);
+    }
     if (rawText && rawText.trim() !== finalText.trim()) {
-      this.ctrl.updateSprite('disfluent-transcript', (sprite) => {
-        sprite.text = `Disfluent: "${rawText.trim()}"`;
-      });
-    } else {
-      this.ctrl.updateSprite('disfluent-transcript', (sprite) => {
-        sprite.text = '';
-      });
+      logger.info(`Raw disfluent transcript: "${rawText.trim()}"`);
     }
   }
 
@@ -513,48 +513,57 @@ export class CodeVoiceTui implements CodeVoiceView {
     this.ctrl.updateSprite('active-file-display', (sprite) => {
       sprite.text = ` Target: ${rel} `;
     });
+    this.ctrl.updateSprite('engine-label', (sprite) => {
+      sprite.text = `Target: ${rel}  •  AssemblyAI universal-3-5-pro  •  Gemini (${config.gemini.model})`;
+    });
   }
 
   getActiveFile(): string {
     return this.activeFile;
   }
 
-  logActivity(tag: string, message: string, color: string = 'foreground'): void {
-    const time = this.formatTime();
-    this.logEntries.push({ timestamp: time, tag, message, color });
-    if (this.logEntries.length > this.maxLogs) {
-      this.logEntries.shift();
-    }
-    this.renderActivityPanel();
+  logActivity(tag: string, message: string, _color: string = 'foreground'): void {
+    // Internal logs are preserved in codevoice.log to keep the screen narrative clean
+    logger.info(`[${tag}] ${message}`);
   }
 
-  private renderActivityPanel(): void {
+  private renderNarrativePanel(): void {
     const children: SpriteDef[] = [
       {
-        id: 'activity-header',
-        text: '--- ACTIVITY AND EXECUTION LOG ---',
+        id: 'narrative-header',
+        text: '── NARRATIVE LOG ─────────────────────────────────────────────────────────────',
         color: 'muted',
-        align: 'center',
       },
     ];
 
-    for (let i = 0; i < this.logEntries.length; i++) {
-      const entry = this.logEntries[i]!;
+    for (let i = 0; i < this.narrativeEvents.length; i++) {
+      const entry = this.narrativeEvents[i]!;
+      let color = 'foreground';
+      if (entry.type === 'heard') {
+        color = 'accent';
+      } else if (entry.type === 'code' || entry.type === 'git' || entry.type === 'file') {
+        color = 'success';
+      } else if (entry.type === 'warning') {
+        color = 'warning';
+      } else if (entry.type === 'error') {
+        color = 'danger';
+      }
+
       children.push({
-        id: `log-item-${i}`,
-        text: `[${entry.timestamp}] [${entry.tag}] ${entry.message}`,
-        color: entry.color ?? 'foreground',
+        id: `narrative-item-${i}`,
+        text: entry.text,
+        color,
         textWrap: 'wrap',
       });
     }
 
     this.ctrl.updateSprite({
-      id: 'activity-panel',
+      id: 'narrative-panel',
       children,
     });
 
     // Auto-scroll to keep newest logs visible
-    const panel = this.ctrl.findSpriteById('activity-panel');
+    const panel = this.ctrl.findSpriteById('narrative-panel');
     if (panel) {
       const height = panel.state?.renderRect?.height ?? 15;
       const total = children.length;
@@ -566,9 +575,8 @@ export class CodeVoiceTui implements CodeVoiceView {
   }
 
   clearLogs(): void {
-    this.logEntries = [];
-    this.renderActivityPanel();
-    this.logActivity('SYSTEM', 'Activity logs cleared', 'muted');
+    this.narrativeEvents = [];
+    this.renderNarrativePanel();
   }
 
   toggleMute(): void {
@@ -576,21 +584,15 @@ export class CodeVoiceTui implements CodeVoiceView {
     this.ctrl.updateSprite('btn-mute', (sprite) => {
       sprite.text = this.isMuted ? ' [ Resume Mic ] ' : ' [ Mute Mic ] ';
       sprite.border = this.isMuted ? 'warning' : 'accent';
+      sprite.activeBg = this.isMuted ? 'warning' : 'accent';
     });
-
-    this.ctrl.updateSprite('audio-meter', (sprite) => {
-      sprite.text = this.isMuted ? '[---X---] MIC MUTED' : '[===|===] STREAM ACTIVE';
-      sprite.color = this.isMuted ? 'warning' : 'success';
-    });
-
     if (this.isMuted) {
       this.setStatus('MUTED');
-      this.logActivity('MIC', 'Microphone paused by user', 'warning');
+      this.recordAction('⏸  Microphone muted by user', 'warning');
     } else {
       this.setStatus('LISTENING');
-      this.logActivity('MIC', 'Microphone resumed', 'success');
+      this.recordAction('▶  Microphone resumed', 'file');
     }
-
     this.callbacks.onMuteToggle?.(this.isMuted);
   }
 
@@ -642,7 +644,7 @@ export class CodeVoiceTui implements CodeVoiceView {
     if (filePath) {
       this.setActiveFile(path.resolve(filePath));
       this.callbacks.onFileSwitch?.(path.resolve(filePath));
-      this.logActivity('FILE', `Active file switched to: ${filePath}`, 'accent');
+      this.recordAction(`✓  Switched active target to ${path.relative(process.cwd(), filePath) || filePath}`, 'file');
     }
   }
 
@@ -674,6 +676,5 @@ export class CodeVoiceTui implements CodeVoiceView {
       // Fallback ANSI restore in case ctrl.dispose encountered an error
       process.stdout.write('\x1b[0m\x1b[?1000l\x1b[?1006l\x1b[?2004l\x1b[?25h\x1b[?1049l');
     }
-    logger.setSink(null);
   }
 }

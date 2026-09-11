@@ -107,6 +107,40 @@ async function runTests() {
     throw new Error(`Expected file_delete, got ${deleteIntent.type}`);
   }
   console.log('[PASS] Test 8 Passed\n');
+  await new Promise((r) => setTimeout(r, 2000));
+
+  // Test 9: Git branch delete routing and execution
+  console.log('Test 9: Git Branch Delete (Routing, Safety & Execution)...');
+  // 9a: Intercepted by safety gate
+  let branchDeleteIntercepted = false;
+  try {
+    await routeIntent('Delete branch feature-temp');
+  } catch (err) {
+    if (err instanceof DestructiveIntentError) {
+      branchDeleteIntercepted = true;
+      console.log(`[OK] Successfully intercepted branch deletion: "${err.matchedKeyword}"`);
+    } else {
+      throw err;
+    }
+  }
+  if (!branchDeleteIntercepted) throw new Error('Failed to intercept branch delete');
+
+  // 9b: Routed with skipSafetyGate
+  const branchDelIntent = await routeIntent('Delete branch feature-temp', { skipSafetyGate: true });
+  console.log('Result:', JSON.stringify(branchDelIntent, null, 2));
+  if (branchDelIntent.type !== 'git_branch_delete' || !('name' in branchDelIntent)) {
+    throw new Error(`Expected git_branch_delete, got ${branchDelIntent.type}`);
+  }
+
+  // 9c: Execution with git
+  await executeGit({ type: 'git_branch', name: 'feature-temp' });
+  await executeGit({ type: 'git_checkout', branch: 'main' });
+  const delResult = await executeGit({ type: 'git_branch_delete', name: 'feature-temp' });
+  console.log('Git branch delete output:', delResult.output);
+  if (!delResult.success) {
+    throw new Error(`Git branch delete failed: ${delResult.output}`);
+  }
+  console.log('[PASS] Test 9 Passed\n');
 
   console.log('[SUCCESS] ALL TESTS PASSED! Intent router, Code agent, Git agent, and File operations are fully functioning.');
 }

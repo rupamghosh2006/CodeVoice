@@ -17,10 +17,11 @@ flowchart TB
         subgraph CodeVoiceCLI ["CodeVoice Terminal Process"]
             CAP["AudioCapture\nSoX / node-record-lpcm16\n16kHz Mono PCM16"]
             WS["StreamingClient\nAssemblyAI WS Client\nwss://streaming.assemblyai.com/v3/ws"]
-            CLI["CLI Presentation Layer\npicocolors / readline"]
+            TRANS["Transliterate Engine\nDevanagari Detector\nGemini Romanization"]
+            CLI["CLI Presentation Layer\nTUI / Plain View / readline"]
             ROUTER["Intent Router\nGemini Flash\nJSON Schema + Hinglish Few-shots"]
             CODE["Code Agent\nDirect disk fs.writeFile\nTypeScript Gen & Edit"]
-            GIT["Git Agent\nchild_process.execFile\nStrict Allowlist (7 Ops)"]
+            GIT["Git Agent\nchild_process.execFile\nStrict Allowlist (8 Ops)"]
         end
 
         FS["Local Filesystem\nSource Code Repository"]
@@ -63,11 +64,12 @@ flowchart TB
 |---|---|
 | **AudioCapture (`src/voice/capture.ts`)** | Streams 16kHz mono PCM16 audio from the default input device via a SoX child process. Buffers and emits binary audio chunks to the streaming client. |
 | **StreamingClient (`src/voice/streaming.ts`)** | Manages WebSocket connection to `wss://streaming.assemblyai.com/v3/ws`. Sends raw API key authorization, applies URL parameters (`speech_model`, `mode`, `prompt`, `keyterms_prompt`), handles message turns, and sends `{"type":"Terminate"}` upon shutdown. |
+| **Transliteration Engine (`src/voice/transliterate.ts`)** | Inspects final transcripts for Devanagari Unicode codepoints (`[\u0900-\u097F]`). Transliterates mixed Hindi/English speech into natural Roman-script Hinglish via Gemini while preserving technical identifiers and passing pure English with 0ms overhead. |
 | **Keyterms Vocabulary (`demo/keyterms.ts`)** | Curated catalog of 50+ programming terms, React hooks, authentication tokens, and Hinglish verb phrases passed to AssemblyAI on session start to boost recognition of technical identifiers. |
 | **Intent Router (`src/intent/router.ts`)** | Classifies final speech transcripts into a strongly typed TypeScript discriminated union (`CodeIntent \| GitIntent \| FileSwitchIntent`) using Gemini Flash with JSON Schema enforcement and Hinglish few-shot examples. Enforces pre-LLM destructive keyword checks. |
 | **Code Agent (`src/agents/codeAgent.ts`)** | Reads the active target file, constructs a structured code generation/editing prompt with TypeScript guidelines, queries Gemini Flash, and writes the output directly back to disk. Returns a one-line summary for terminal reporting. |
-| **Git Agent (`src/agents/gitAgent.ts`)** | Translates structured `GitIntent` objects into an explicit command allowlist. Executes commands using `child_process.execFile` with argument arrays (never arbitrary shell strings) and applies parameter sanitization. |
-| **CLI Presentation (`src/cli.ts`)** | Orchestrates the session lifecycle, renders real-time in-place partial transcripts, prints formatted turns with language badges, echoes Git commands, and handles interactive readline confirmation prompts for destructive commands. |
+| **Git Agent (`src/agents/gitAgent.ts`)** | Translates structured `GitIntent` objects into an explicit command allowlist (8 operations). Executes commands using `child_process.execFile` with argument arrays (never arbitrary shell strings) and applies parameter sanitization. |
+| **CLI Presentation (`src/cli.ts`)** | Orchestrates the session lifecycle, renders interactive TUI or plain terminal view, prints formatted turns, echoes Git commands, and handles interactive confirmation prompts for destructive commands. |
 | **Configuration (`src/utils/config.ts`)** | Validates required environment variables, loads default paths, and configures global network settings (`dns.setDefaultResultOrder('ipv4first')`) to eliminate Node.js 24 IPv6 connection timeouts. |
 
 ---
@@ -208,11 +210,12 @@ flowchart TD
     EXEC -.->|"Bypasses Shell Entirely"| SHELL
 ```
 
-### The 7 allowlisted Git operations
+### The 8 allowlisted Git operations
 
 | Intent Type | Sanitization Applied | Invocation (`execFile`) |
 |---|---|---|
 | `git_branch` | `sanitizeBranchName()`: `[a-zA-Z0-9/_.-]`, max 100 chars | `['checkout', '-b', <name>]` |
+| `git_branch_delete` | `sanitizeBranchName()`: `[a-zA-Z0-9/_.-]`, max 100 chars | `['branch', '-D', <name>]` |
 | `git_commit` | `sanitizeCommitMessage()`: whitespace trimmed, max 500 chars | `['commit', '-m', <message>]` |
 | `git_status` | None (fixed arguments) | `['status']` |
 | `git_diff` | None (fixed arguments) | `['diff']` |
@@ -240,8 +243,9 @@ sequenceDiagram
     AAI-->>CLI: Turn (end_of_turn: false)
     Note over CLI: Live in-place update: \r[Partial] <text>
     AAI-->>CLI: Turn (end_of_turn: true)
-    CLI->>CLI: Print final turn: [Turn] <text>
-    CLI->>Router: routeIntent(transcript)
+    CLI->>CLI: Transliterate Devanagari to Roman Hinglish (if present)
+    CLI->>CLI: Display heard turn
+    CLI->>Router: routeIntent(romanizedTranscript)
     
     alt Destructive Keyword Detected
         Router-->>CLI: DestructiveIntentError

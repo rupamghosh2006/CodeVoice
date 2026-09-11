@@ -1,7 +1,9 @@
 import * as readline from 'node:readline';
 import * as path from 'node:path';
 import pc from 'picocolors';
-import type { CodeVoiceView } from './types';
+import { config } from '../utils/config';
+import { logger } from '../utils/logger';
+import type { CodeVoiceView, NarrativeEventType } from './types';
 
 export class PlainCliView implements CodeVoiceView {
   private activeFile: string;
@@ -16,8 +18,9 @@ export class PlainCliView implements CodeVoiceView {
     console.log(pc.bold(pc.cyan('  🎙️  CodeVoice -- Multilingual Voice Development Interface')));
     console.log(pc.dim('  ─────────────────────────────────────────────────────────────'));
     console.log(`  Engine:  ${pc.magenta('AssemblyAI Universal-3-5-Pro (Streaming)')}`);
-    console.log(`  Router:  ${pc.blue('Gemini 2.5 Flash')}`);
+    console.log(`  Router:  ${pc.blue(`Gemini (${config.gemini.model})`)}`);
     console.log(`  Target:  ${pc.yellow(path.relative(process.cwd(), this.activeFile))}`);
+    console.log(pc.dim(`  Logs:    ${pc.dim('codevoice.log')}`));
     console.log(pc.dim('  ─────────────────────────────────────────────────────────────\n'));
   }
 
@@ -25,9 +28,9 @@ export class PlainCliView implements CodeVoiceView {
     if (status === 'CONNECTING') {
       process.stdout.write(pc.yellow('  ⏳ Connecting to AssemblyAI WebSocket...\n'));
     } else if (status === 'LISTENING') {
-      process.stdout.write(pc.green('  ● 🎙️  Listening continuously... (Speak now)\n\n'));
+      process.stdout.write(pc.green('  ● 🎙️  Listening continuously... (Speak now in English or Hindi)\n\n'));
     } else if (status === 'PROCESSING') {
-      process.stdout.write(pc.dim('  ⚡ Routing intent...\r'));
+      process.stdout.write(pc.dim('  ⚡ Processing instruction...\r'));
     } else if (status === 'MUTED') {
       process.stdout.write(pc.yellow('  ⏸️  Microphone paused.\n'));
     } else if (status === 'ERROR') {
@@ -38,44 +41,49 @@ export class PlainCliView implements CodeVoiceView {
   updateLiveTranscript(text: string): void {
     const trimmed = text.trim();
     if (trimmed) {
-      process.stdout.write(`\r  ${pc.blue('●')} ${pc.dim(trimmed.substring(0, 90))} \x1b[K`);
+      process.stdout.write(`\r  ${pc.cyan('●')} ${pc.dim(trimmed.substring(0, 90))} \x1b[K`);
     }
   }
 
-  setFinalTranscript(finalText: string, language?: string, rawText?: string): void {
+  recordHeard(text: string): void {
     process.stdout.write('\r\x1b[K');
-    const langBadge = language ? pc.yellow(`[${language.toUpperCase()}] `) : '';
-    console.log(`  ${pc.magenta('📝')} ${langBadge}${pc.bold(finalText)}`);
+    console.log(pc.cyan(`  🎙  Heard: "${text}"`));
+  }
+
+  recordAction(actionText: string, type: NarrativeEventType = 'code'): void {
+    if (type === 'error') {
+      console.log(pc.red(`  ${actionText}`));
+    } else if (type === 'warning') {
+      console.log(pc.yellow(`  ${actionText}`));
+    } else if (type === 'info') {
+      console.log(pc.dim(`  ${actionText}`));
+    } else {
+      console.log(pc.green(`  ${actionText}`));
+    }
+  }
+
+  setFinalTranscript(finalText: string, _language?: string, rawText?: string, originalDevanagari?: string): void {
+    this.recordHeard(finalText);
+    if (originalDevanagari && originalDevanagari.trim() !== finalText.trim()) {
+      logger.info(`Devanagari: "${originalDevanagari.trim()}"`);
+    }
     if (rawText && rawText.trim() !== finalText.trim()) {
-      console.log(`     ${pc.dim(`↳ Raw (disfluent): "${rawText.trim()}"`)}`);
+      logger.info(`Raw (disfluent): "${rawText.trim()}"`);
     }
   }
 
   setActiveFile(newPath: string): void {
     this.activeFile = newPath;
-    console.log(`  ${pc.cyan('📂')} Active target file set to: ${pc.bold(path.relative(process.cwd(), newPath))}`);
+    console.log(`  ${pc.cyan('📂')} Target file set to: ${pc.bold(path.relative(process.cwd(), newPath))}`);
   }
 
   getActiveFile(): string {
     return this.activeFile;
   }
 
-  logActivity(tag: string, message: string, color?: string): void {
-    const timestamp = new Date().toTimeString().split(' ')[0] ?? '';
-    let formattedTag = `[${tag}]`;
-    if (tag === 'CODE') {
-      formattedTag = pc.green(`✓ [${tag}]`);
-    } else if (tag === 'GIT' || tag === 'GIT_OUT') {
-      formattedTag = pc.cyan(`$ [${tag}]`);
-    } else if (tag === 'SAFETY' || tag === 'WARN') {
-      formattedTag = pc.yellow(`⚠️ [${tag}]`);
-    } else if (tag === 'ERR' || tag === 'DANGER') {
-      formattedTag = pc.red(`✗ [${tag}]`);
-    } else {
-      formattedTag = pc.dim(`[${tag}]`);
-    }
-
-    console.log(`  ${pc.dim(timestamp)} ${formattedTag} ${message}`);
+  logActivity(tag: string, message: string, _color?: string): void {
+    // Preserve internal activity logs in codevoice.log
+    logger.info(`[${tag}] ${message}`);
   }
 
   async promptDestructiveConfirmation(keyword: string, rawTranscript: string): Promise<boolean> {

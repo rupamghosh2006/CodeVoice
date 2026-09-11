@@ -42,11 +42,12 @@ Even if an input contains `; rm -rf /` or `& calc.exe`, the operating system tre
 
 ## 2. Strict Subprocess Command Allowlist
 
-The LLM cannot invent or execute arbitrary Git subcommands. Every action must map to one of exactly seven allowlisted operations:
+The LLM cannot invent or execute arbitrary Git subcommands. Every action must map to one of exactly eight allowlisted operations:
 
 | Operation Type | Invocation Arguments | Purpose |
 |---|---|---|
 | `git_branch` | `['checkout', '-b', <name>]` | Create and checkout a new local branch |
+| `git_branch_delete` | `['branch', '-D', <name>]` | Delete a local branch (requires safety confirmation) |
 | `git_commit` | `['commit', '-m', <message>]` | Commit staged changes with message |
 | `git_status` | `['status']` | Display repository working tree status |
 | `git_diff` | `['diff']` | Display working directory modifications |
@@ -60,6 +61,7 @@ Any intent not recognized within this dispatch table is rejected immediately:
 export function resolveGitArgs(intent: GitIntent): string[] {
   switch (intent.type) {
     case 'git_branch': return ['checkout', '-b', sanitizeBranchName(intent.name)];
+    case 'git_branch_delete': return ['branch', '-D', sanitizeBranchName(intent.name)];
     case 'git_commit': return ['commit', '-m', sanitizeCommitMessage(intent.message)];
     case 'git_status': return ['status'];
     case 'git_diff': return ['diff'];
@@ -110,6 +112,8 @@ To guard against catastrophic data loss (e.g., accidental branch deletion, hard 
 export const DESTRUCTIVE_KEYWORDS = [
   'delete',
   'remove branch',
+  'delete branch',
+  'branch delete',
   'force push',
   'force-push',
   'reset --hard',

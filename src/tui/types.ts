@@ -1,3 +1,11 @@
+export type NarrativeEventType = 'heard' | 'code' | 'git' | 'file' | 'warning' | 'error' | 'info';
+
+export interface NarrativeEvent {
+  text: string;
+  type: NarrativeEventType;
+  timestamp?: string;
+}
+
 export interface ActivityLogEntry {
   timestamp: string;
   tag: string;
@@ -15,7 +23,9 @@ export interface CodeVoiceView {
   init(): Promise<void>;
   setStatus(status: 'CONNECTING' | 'LISTENING' | 'PROCESSING' | 'MUTED' | 'ERROR'): void;
   updateLiveTranscript(text: string): void;
-  setFinalTranscript(finalText: string, language?: string, rawText?: string): void;
+  setFinalTranscript(finalText: string, language?: string, rawText?: string, originalDevanagari?: string): void;
+  recordHeard(text: string): void;
+  recordAction(actionText: string, type?: NarrativeEventType): void;
   setActiveFile(newPath: string): void;
   getActiveFile(): string;
   logActivity(tag: string, message: string, color?: string): void;
@@ -23,3 +33,4 @@ export interface CodeVoiceView {
   openFileSwitchDialog?(): Promise<string | null>;
   dispose(): void;
 }
+

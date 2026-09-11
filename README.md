@@ -20,7 +20,7 @@
   <a href="#"><img src="https://img.shields.io/badge/Vocabulary-50%2B%20Keyterms-informational?style=flat-square" alt="Keyterms" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" /></a>
   <a href="#"><img src="https://img.shields.io/badge/npm-@rupamghosh2006%2Fcodevoice-red?style=flat-square" alt="npm" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/Tests-8%2F8%20Passing-brightgreen?style=flat-square" alt="Tests" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/Tests-9%2F9%20Passing-brightgreen?style=flat-square" alt="Tests" /></a>
 </p>
 
 ---
@@ -41,7 +41,7 @@
 ## Why CodeVoice Fits the Hackathon Criteria
 
 1. **Real-time dictation and live transcription**: Continuous streaming via AssemblyAI's universal-3-5-pro with live in-place partial transcript display and instantaneous turn actions.
-2. **Multi-language support (18 languages and Hinglish native)**: Speak naturally in Hindi, English, or mixed Hinglish ("Ek function banao jo email validate kare") without manual language switching.
+2. **Multi-language support (18 languages & Hinglish native)**: Speak naturally in Hindi, English, or mixed Hinglish ("Ek function banao jo email validate kare") without manual language switching. Includes automatic Devanagari-to-Roman script transliteration.
 3. **Filler-word removal and clean output**: AssemblyAI automatically removes disfluencies ("um, uh, like") and formats clean instructions before passing to intent routing.
 4. **Custom vocabulary and keyterms**: 50+ domain-specific keyterms (useEffect, useState, JWT, PCM16, API, Hinglish verb phrases) steered on session connect.
 
@@ -131,7 +131,10 @@ Step-by-step installation instructions, cross-platform SoX setup, configuration 
 | **Code Generation** | "Ek function banao jo email validate kare" | Appends `validateEmail` directly to active file |
 | **Code Editing** | "useEffect ke andar API call add karo" | Modifies active file on disk |
 | **File Switching** | "Switch to demo/sample.ts" or "Open auth file" | Changes active file context |
+| **File Creation** | "Create file demo.ts" or "Nayi file banao demo.ts" | Switches to / prepares new file |
+| **File Deletion** | "Delete demo.ts" or "demo.ts ko delete kar do" | Intercepted by Safety Gate, prompts `(y/N)`, removes file |
 | **Git Branch** | "Nayi branch banao feature-email" | `$ git checkout -b feature-email` |
+| **Git Branch Delete**| "Delete branch feature-temp" or "Branch feature-temp delete karo" | Intercepted by Safety Gate, prompts `(y/N)`, `$ git branch -D feature-temp` |
 | **Git Status** | "Git status dikhao" | `$ git status` |
 | **Git Add** | "Sab files add karo" | `$ git add .` |
 | **Git Commit** | "Commit karo add email validation" | `$ git commit -m "add email validation"` |
@@ -142,7 +145,7 @@ Step-by-step installation instructions, cross-platform SoX setup, configuration 
 
 ## Security Model
 
-Detailed information regarding our kernel-level argument separation (`execFile`), 7-command Git allowlist, input sanitization, pre-LLM destructive command gate, and credential management is documented in [docs/security.md](docs/security.md).
+Detailed information regarding our kernel-level argument separation (`execFile`), 8-command Git allowlist, input sanitization, pre-LLM destructive command gate, and credential management is documented in [docs/security.md](docs/security.md).
 
 ---
 

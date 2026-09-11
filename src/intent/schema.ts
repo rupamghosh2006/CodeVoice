@@ -33,6 +33,12 @@ export interface GitBranchIntent {
   name: string;
 }
 
+export interface GitBranchDeleteIntent {
+  type: 'git_branch_delete';
+  /** Branch name to delete */
+  name: string;
+}
+
 export interface GitCommitIntent {
   type: 'git_commit';
   /** Commit message */
@@ -63,6 +69,7 @@ export interface GitCheckoutIntent {
 
 export type GitIntent =
   | GitBranchIntent
+  | GitBranchDeleteIntent
   | GitCommitIntent
   | GitStatusIntent
   | GitDiffIntent
@@ -101,6 +108,7 @@ export function isCodeIntent(intent: Intent): intent is CodeIntent {
 export function isGitIntent(intent: Intent): intent is GitIntent {
   return (
     intent.type === 'git_branch' ||
+    intent.type === 'git_branch_delete' ||
     intent.type === 'git_commit' ||
     intent.type === 'git_status' ||
     intent.type === 'git_diff' ||
@@ -108,6 +116,10 @@ export function isGitIntent(intent: Intent): intent is GitIntent {
     intent.type === 'git_add' ||
     intent.type === 'git_checkout'
   );
+}
+
+export function isGitBranchDeleteIntent(intent: Intent): intent is GitBranchDeleteIntent {
+  return intent.type === 'git_branch_delete';
 }
 
 export function isFileSwitchIntent(intent: Intent): intent is FileSwitchIntent {
@@ -122,6 +134,8 @@ export function isFileDeleteIntent(intent: Intent): intent is FileDeleteIntent {
 export const DESTRUCTIVE_KEYWORDS = [
   'delete',
   'remove branch',
+  'delete branch',
+  'branch delete',
   'force push',
   'force-push',
   'reset --hard',

@@ -10,13 +10,17 @@ import { handleConfigCommand, ensureUserConfigInteractive } from './utils/userCo
 import { logger } from './utils/logger';
 import { MicCapture } from './voice/capture';
 import { StreamingClient } from './voice/streaming';
+import { transliterateIfNeeded } from './voice/transliterate';
 import { routeIntent, UnknownIntentError, DestructiveIntentError } from './intent/router';
 import {
   isCodeIntent,
   isGitIntent,
   isFileSwitchIntent,
   isFileDeleteIntent,
+  isGitBranchDeleteIntent,
   type Intent,
+  type GitIntent,
+  type GitBranchDeleteIntent,
 } from './intent/schema';
 import { handleCodeIntent } from './agents/codeAgent';
 import { executeGit, resolveGitArgs } from './agents/gitAgent';
@@ -46,6 +50,7 @@ Usage:
 Options:
   --file <path>    Target file to create/edit with voice commands (default: ./demo/sample.ts)
   --plain          Run in plain CLI output mode (no TUI)
+  --debug          Write verbose debug logs to terminal in addition to codevoice.log
   -h, --help       Show help
   -v, --version    Show version
 
@@ -77,6 +82,10 @@ let isMicMuted = false;
 
 async function main(): Promise<void> {
   const rawArgs = process.argv.slice(2);
+
+  if (rawArgs.includes('--debug')) {
+    process.env.CODEVOICE_DEBUG = '1';
+  }
 
   if (rawArgs[0] === 'config') {
     await handleConfigCommand(rawArgs.slice(1));
@@ -157,15 +166,68 @@ async function main(): Promise<void> {
   // Initialize UI
   await ui.init();
   ui.setStatus('CONNECTING');
-  ui.logActivity('SYSTEM', `Initializing CodeVoice (${isPlain ? 'Plain CLI' : 'TUI'})...`, 'accent');
-  ui.logActivity('ASSEMBLYAI', `Connecting to WebSocket: ${config.assemblyai.wsUrl}`, 'muted');
-  ui.logActivity('ROUTER', `LLM Router model: ${config.gemini.model}`, 'muted');
+  logger.info(`Initializing CodeVoice (${isPlain ? 'Plain CLI' : 'TUI'})...`);
+  logger.info(`Connecting to WebSocket: ${config.assemblyai.wsUrl}`);
+  logger.info(`LLM Router model: ${config.gemini.model}`);
+
+  function formatGitNarrativeSummary(intent: GitIntent, output: string): string {
+    const trimmed = output.trim();
+    const firstLine = trimmed.split('\n')[0]?.trim() ?? '';
+
+    switch (intent.type) {
+      case 'git_status': {
+        if (trimmed.includes('nothing to commit, working tree clean')) {
+          return 'working tree clean';
+        }
+        const branchMatch = trimmed.match(/On branch (.+)/);
+        const branchName = branchMatch ? branchMatch[1] : 'main';
+        const modifiedCount = (trimmed.match(/modified:/g) || []).length;
+        const untrackedMatch = trimmed.includes('Untracked files:');
+        const details: string[] = [];
+        if (modifiedCount > 0) details.push(`${modifiedCount} file${modifiedCount > 1 ? 's' : ''} modified`);
+        if (untrackedMatch) details.push('untracked files');
+        if (details.length === 0) details.push('changes detected');
+        return `On branch ${branchName} (${details.join(', ')})`;
+      }
+      case 'git_commit': {
+        const commitMatch = trimmed.match(/\[([^\]]+)\]/);
+        if (commitMatch) {
+          return `[${commitMatch[1]}] "${intent.message}"`;
+        }
+        return `"${intent.message}"`;
+      }
+      case 'git_branch': {
+        return `Switched to branch "${intent.name}"`;
+      }
+      case 'git_branch_delete': {
+        return `Deleted branch "${intent.name}"`;
+      }
+      case 'git_checkout': {
+        return `Switched to branch "${intent.branch}"`;
+      }
+      case 'git_add': {
+        return 'Staged all changes';
+      }
+      case 'git_diff': {
+        if (!trimmed) return 'No unstaged changes';
+        const filesCount = (trimmed.match(/diff --git/g) || []).length;
+        return filesCount > 0 ? `${filesCount} file(s) with diff` : firstLine.substring(0, 60);
+      }
+      case 'git_log': {
+        const commits = trimmed.split('\n').filter(Boolean);
+        return `${commits.length} recent commit(s): ${commits[0] ?? ''}`;
+      }
+      default:
+        return firstLine || 'Success';
+    }
+  }
 
   // ── Intent Dispatcher ───────────────────────────────────────────────────────
 
   async function dispatchIntent(intent: Intent): Promise<void> {
     if (isFileSwitchIntent(intent)) {
-      const resolvedPath = path.resolve(intent.path);
+      const sanitized = intent.path.trim().replace(/\.+$/, '');
+      const resolvedPath = path.resolve(sanitized || intent.path);
       activeFile = resolvedPath;
       const targetDir = path.dirname(activeFile);
       if (!fs.existsSync(targetDir)) {
@@ -176,68 +238,63 @@ async function main(): Promise<void> {
       }
       ui.setActiveFile(activeFile);
       const rel = path.relative(process.cwd(), activeFile);
-      ui.logActivity('FILE', `Active file set to: ${rel}`, 'accent');
+      ui.recordAction(`✓  Switched active target to ${rel}`, 'file');
+      logger.info(`File switch intent: target set to ${activeFile}`);
     } else if (isFileDeleteIntent(intent)) {
-      const targetToDelete = intent.path === 'current' ? activeFile : path.resolve(intent.path);
+      const sanitized = intent.path.trim().replace(/\.+$/, '');
+      const targetToDelete = sanitized === 'current' ? activeFile : path.resolve(sanitized || intent.path);
       const cwd = process.cwd();
       const rel = path.relative(cwd, targetToDelete);
       if (rel.startsWith('..') || (path.isAbsolute(rel) && !targetToDelete.startsWith(cwd))) {
-        ui.logActivity(
-          'SECURITY',
-          `Cannot delete file outside workspace (${targetToDelete})`,
-          'danger'
-        );
+        ui.recordAction(`⚠️  Cannot delete file outside workspace (${targetToDelete})`, 'warning');
+        logger.warn(`Security blocked deletion: ${targetToDelete}`);
         return;
       }
       if (!fs.existsSync(targetToDelete)) {
-        ui.logActivity(
-          'FILE',
-          `File does not exist: ${path.relative(cwd, targetToDelete) || targetToDelete}`,
-          'warning'
-        );
+        ui.recordAction(`⚠️  File does not exist: ${rel || targetToDelete}`, 'warning');
+        logger.warn(`File does not exist for deletion: ${targetToDelete}`);
         return;
       }
       fs.unlinkSync(targetToDelete);
-      ui.logActivity('FILE', `Deleted file: ${path.relative(cwd, targetToDelete)}`, 'success');
+      ui.recordAction(`✓  Deleted ${rel}`, 'file');
+      logger.info(`Deleted file: ${targetToDelete}`);
       if (path.resolve(activeFile) === path.resolve(targetToDelete)) {
         activeFile = config.app.targetFile;
         if (!fs.existsSync(activeFile)) {
           fs.writeFileSync(activeFile, '// CodeVoice target file\n', 'utf-8');
         }
         ui.setActiveFile(activeFile);
-        ui.logActivity('FILE', `Active file reset to: ${path.relative(cwd, activeFile)}`, 'accent');
+        ui.recordAction(`✓  Active target reset to: ${path.relative(cwd, activeFile)}`, 'file');
       }
     } else if (isCodeIntent(intent)) {
-      ui.logActivity(
-        'CODE',
-        `Running ${intent.type} on ${path.basename(activeFile)}...`,
-        'accent'
-      );
+      logger.info(`Running code intent [${intent.type}] on ${activeFile}`);
       try {
         const result = await handleCodeIntent(intent, activeFile);
         const relPath = path.relative(process.cwd(), result.targetFile);
-        ui.logActivity('CODE', `Updated ${relPath} (${result.summary})`, 'success');
+        if (intent.type === 'code_explain') {
+          ui.recordAction(`💡  ${result.summary || 'Code explanation complete'}`, 'code');
+        } else {
+          ui.recordAction(`✓  Generated code in ${relPath} (${result.summary})`, 'code');
+        }
+        logger.info(`Code intent succeeded: ${result.summary}`);
       } catch (codeErr: any) {
-        ui.logActivity('CODE_ERR', codeErr?.message ?? String(codeErr), 'danger');
+        const errMsg = codeErr?.message ?? String(codeErr);
+        ui.recordAction(`✗  Code error: ${errMsg}`, 'error');
+        logger.error(`Code intent error: ${errMsg}`);
       }
     } else if (isGitIntent(intent)) {
       const args = resolveGitArgs(intent);
       const cmdString = `git ${args.join(' ')}`;
-      ui.logActivity('GIT', `$ ${cmdString}`, 'accent');
+      logger.info(`Running git: ${cmdString}`);
 
       const result = await executeGit(intent);
-      if (result.output) {
-        const lines = result.output.split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            ui.logActivity('GIT_OUT', line.trimEnd(), 'muted');
-          }
-        }
-      }
+      logger.info(`Git output for [${cmdString}]:\n${result.output}`);
       if (result.success) {
-        ui.logActivity('GIT', 'Command succeeded', 'success');
+        const summary = formatGitNarrativeSummary(intent, result.output);
+        ui.recordAction(`$  ${cmdString} → ${summary}`, 'git');
       } else {
-        ui.logActivity('GIT', 'Command failed', 'danger');
+        const errFirstLine = (result.output || 'Command failed').split('\n')[0]?.trim();
+        ui.recordAction(`✗  git ${args[0]} failed: ${errFirstLine}`, 'error');
       }
     }
   }
@@ -246,10 +303,10 @@ async function main(): Promise<void> {
 
   streaming.on('ready', () => {
     ui.setStatus('LISTENING');
-    ui.logActivity('ASSEMBLYAI', 'Session active -- Universal-3-5-Pro streaming ready', 'success');
+    logger.info('Session active -- Universal-3-5-Pro streaming ready');
     if (!isMicMuted) {
       mic.start();
-      ui.logActivity('MIC', 'Microphone capture active (16kHz PCM16)', 'success');
+      logger.info('Microphone capture active (16kHz PCM16)');
     }
   });
 
@@ -261,15 +318,22 @@ async function main(): Promise<void> {
     }
 
     // 2. Final turn
-    const finalText = event.text.trim();
-    if (!finalText) return;
+    const rawTranscript = event.text.trim();
+    if (!rawTranscript) return;
 
-    ui.setFinalTranscript(finalText, event.language, event.rawText);
-    ui.logActivity('STT', `[${event.language || 'en'}] "${finalText}"`, 'active');
+    // Transliterate Devanagari to Roman script Hinglish if present
+    const translit = await transliterateIfNeeded(rawTranscript);
+    const romanizedTranscript = translit.text;
 
-    if (event.rawText && event.rawText.trim() !== finalText) {
-      ui.logActivity('RAW_STT', `↳ Disfluent: "${event.rawText.trim()}"`, 'muted');
+    logger.info(
+      `[STT] Final: "${rawTranscript}" -> Romanized: "${romanizedTranscript}" (lang: ${event.language || 'en'}, ${translit.latencyMs}ms)`
+    );
+    if (event.rawText && event.rawText !== rawTranscript) {
+      logger.info(`[STT] Disfluent: "${event.rawText}"`);
     }
+
+    // Record human-readable speech in narrative view
+    ui.recordHeard(romanizedTranscript);
 
     // Avoid parallel concurrent intent executions
     if (isProcessing) return;
@@ -277,20 +341,40 @@ async function main(): Promise<void> {
     ui.setStatus('PROCESSING');
 
     try {
-      // 3. Route Intent via Gemini
-      const intent = await routeIntent(finalText);
-      ui.logActivity('ROUTER', `Intent matched: [${intent.type}]`, 'accent');
+      // 3. Route Intent via Gemini using romanized text
+      const intent = await routeIntent(romanizedTranscript);
+      logger.info(`Intent matched: [${intent.type}]`);
 
       // Extra guard: If classified as file_delete without tripping keyword gate
       if (isFileDeleteIntent(intent)) {
         mic.stop();
         ui.setStatus('MUTED');
-        const confirmed = await ui.promptDestructiveConfirmation('file delete', finalText);
+        ui.recordAction('⚠️  Destructive confirmation required: file deletion', 'warning');
+        const confirmed = await ui.promptDestructiveConfirmation('file delete', romanizedTranscript);
         if (confirmed) {
-          ui.logActivity('SAFETY', 'Executing confirmed file deletion...', 'warning');
+          ui.recordAction('✓  Confirmed file deletion', 'file');
           await dispatchIntent(intent);
         } else {
-          ui.logActivity('SAFETY', 'Action cancelled by user', 'muted');
+          ui.recordAction('—  Action cancelled by user', 'info');
+        }
+        if (!isMicMuted) {
+          mic.start();
+          ui.setStatus('LISTENING');
+        }
+        return;
+      }
+
+      // Extra guard: If classified as git_branch_delete without tripping keyword gate
+      if (isGitBranchDeleteIntent(intent)) {
+        mic.stop();
+        ui.setStatus('MUTED');
+        ui.recordAction(`⚠️  Destructive confirmation required: delete branch "${intent.name}"`, 'warning');
+        const confirmed = await ui.promptDestructiveConfirmation(`delete branch ${intent.name}`, romanizedTranscript);
+        if (confirmed) {
+          ui.recordAction(`✓  Confirmed deletion of branch "${intent.name}"`, 'git');
+          await dispatchIntent(intent);
+        } else {
+          ui.recordAction('—  Action cancelled by user', 'info');
         }
         if (!isMicMuted) {
           mic.start();
@@ -305,29 +389,33 @@ async function main(): Promise<void> {
       if (err instanceof DestructiveIntentError) {
         mic.stop();
         ui.setStatus('MUTED');
+        ui.recordAction(`⚠️  Destructive action intercepted: "${err.matchedKeyword}"`, 'warning');
         const confirmed = await ui.promptDestructiveConfirmation(
           err.matchedKeyword,
-          err.rawTranscript
+          romanizedTranscript
         );
         if (confirmed) {
-          ui.logActivity('SAFETY', 'Executing confirmed destructive action...', 'warning');
+          ui.recordAction('✓  Confirmed destructive execution', 'warning');
           try {
-            const intent = await routeIntent(err.rawTranscript, { skipSafetyGate: true });
+            const intent = await routeIntent(romanizedTranscript, { skipSafetyGate: true });
             await dispatchIntent(intent);
           } catch (execErr: any) {
-            ui.logActivity('SAFETY_ERR', execErr?.message ?? String(execErr), 'danger');
+            ui.recordAction(`✗  Execution error: ${execErr?.message ?? execErr}`, 'error');
+            logger.error('Safety execution error:', execErr);
           }
         } else {
-          ui.logActivity('SAFETY', 'Action cancelled by user', 'muted');
+          ui.recordAction('—  Action cancelled by user', 'info');
         }
         if (!isMicMuted) {
           mic.start();
           ui.setStatus('LISTENING');
         }
       } else if (err instanceof UnknownIntentError) {
-        ui.logActivity('ROUTER', `Couldn't route intent: "${err.rawTranscript}"`, 'warning');
+        ui.recordAction(`⚠️  Couldn't understand: "${romanizedTranscript}"`, 'warning');
+        logger.warn(`Unknown intent for utterance: "${romanizedTranscript}"`);
       } else {
-        ui.logActivity('ERROR', `Pipeline error: ${err?.message ?? err}`, 'danger');
+        ui.recordAction(`✗  Error: ${err?.message ?? err}`, 'error');
+        logger.error('Pipeline error:', err);
       }
     } finally {
       isProcessing = false;
@@ -343,12 +431,14 @@ async function main(): Promise<void> {
 
   mic.on('error', (err) => {
     ui.setStatus('ERROR');
-    ui.logActivity('MIC_ERROR', `${err.message} (Ensure SoX is installed)`, 'danger');
+    ui.recordAction(`✗  Microphone error: ${err.message}`, 'error');
+    logger.error('Mic error:', err);
   });
 
   streaming.on('error', (err) => {
     ui.setStatus('ERROR');
-    ui.logActivity('STT_ERROR', `Streaming Error: ${err.message}`, 'danger');
+    ui.recordAction(`✗  Streaming STT error: ${err.message}`, 'error');
+    logger.error('Streaming STT error:', err);
   });
 
   process.on('SIGINT', shutdown);

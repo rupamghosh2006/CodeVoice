@@ -33,10 +33,18 @@ EXAMPLES:
 - "Switch to demo/sample.ts" → {"type":"file_switch","path":"demo/sample.ts"}
 - "Open auth file" → {"type":"file_switch","path":"src/auth.ts"}
 - "File badlo demo/sample.ts" → {"type":"file_switch","path":"demo/sample.ts"}
+- "Create a file demo.ts" → {"type":"file_switch","path":"demo.ts"}
+- "Create file demo.ts" → {"type":"file_switch","path":"demo.ts"}
+- "Nayi file banao demo.ts" → {"type":"file_switch","path":"demo.ts"}
+- "Make a file demo.ts" → {"type":"file_switch","path":"demo.ts"}
 - "Delete demo.ts" → {"type":"file_delete","path":"demo.ts"}
 - "demo.ts ko delete kar do" → {"type":"file_delete","path":"demo.ts"}
 - "Remove file demo.ts" → {"type":"file_delete","path":"demo.ts"}
-- "Delete this file" → {"type":"file_delete","path":"current"}`;
+- "Delete this file" → {"type":"file_delete","path":"current"}
+- "Delete branch feature-login" → {"type":"git_branch_delete","name":"feature-login"}
+- "Branch feature-login delete karo" → {"type":"git_branch_delete","name":"feature-login"}
+- "Remove branch feature-login" → {"type":"git_branch_delete","name":"feature-login"}
+- "Delete git branch temp" → {"type":"git_branch_delete","name":"temp"}`;
 
 // Gemini response schema for structured output
 const INTENT_SCHEMA = {
@@ -49,6 +57,7 @@ const INTENT_SCHEMA = {
         'code_edit',
         'code_explain',
         'git_branch',
+        'git_branch_delete',
         'git_commit',
         'git_status',
         'git_diff',

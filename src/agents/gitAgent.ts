@@ -21,6 +21,7 @@ const execFileAsync = promisify(execFile);
 function sanitizeBranchName(name: string): string {
   return name
     .trim()
+    .replace(/^[ -]+/, '')
     .replace(/[^a-zA-Z0-9/_.\-]/g, '-')
     .replace(/--+/g, '-')
     .slice(0, 100);
@@ -60,6 +61,8 @@ export function resolveGitArgs(intent: GitIntent): string[] {
   switch (intent.type) {
     case 'git_branch':
       return ['checkout', '-b', sanitizeBranchName(intent.name)];
+    case 'git_branch_delete':
+      return ['branch', '-D', sanitizeBranchName(intent.name)];
     case 'git_commit':
       return ['commit', '-m', sanitizeCommitMessage(intent.message)];
     case 'git_status':

@@ -154,7 +154,7 @@ Before launching the full voice interface, run the automated diagnostic scripts 
 ```bash
 npm run test:agents
 ```
-Runs 8/8 end-to-end integration tests:
+Runs 9/9 end-to-end integration tests:
 - Hinglish code generation routing (`code_generation`)
 - Code modification routing (`code_edit`)
 - Git branch routing (`git_branch`)
@@ -163,8 +163,15 @@ Runs 8/8 end-to-end integration tests:
 - Safe `git status` subprocess execution
 - Active target file switching (`file_switch`)
 - File deletion routing with safety bypass (`file_delete`)
+- Git branch deletion with safety gate and subprocess execution (`git_branch_delete`)
 
-### 2. Test Microphone and AssemblyAI Streaming
+### 2. Verify Devanagari Transliteration & Latency
+```bash
+npm run test:translit
+```
+Verifies Unicode Devanagari detection, zero-latency English passthrough, Hinglish Romanization, and technical identifier preservation.
+
+### 3. Test Microphone and AssemblyAI Streaming
 ```bash
 npm run phase1
 ```
@@ -248,15 +255,20 @@ Speak naturally into your microphone. You can speak English, Hindi, or mixed Hin
 - **Stage**: "Sab files add karo" → `git add .`
 - **Commit**: "Commit karo: add email validation" → `git commit -m "add email validation"`
 - **Status**: "Git status dikhao" → `git status`
+- **Log**: "Git log dikhao" → `git log -n 5 --oneline`
 
 ### 5. Destructive Command Safety Confirmation
-- **Say**: "Force push master branch"
-- **Output**: Execution is paused and an interactive confirmation appears:
-  ```text
-  [Warning] Destructive action detected (force push):
-     "force push master branch"
-  Are you sure you want to execute this? (y/N):
-  ```
+High-risk commands (file deletion, branch deletion, force-push) are intercepted before execution:
+- **Branch Delete**: "Delete branch feature-temp" or "Branch feature-temp delete karo"
+- **File Delete**: "Delete demo.ts" or "demo.ts ko delete kar do"
+- **Force Push**: "Force push master branch"
+
+Execution pauses and prompts for confirmation in the terminal:
+```text
+[Warning] Destructive action detected (delete branch):
+   "Delete branch feature-temp"
+Are you sure you want to execute this? (y/N):
+```
 
 ---
 

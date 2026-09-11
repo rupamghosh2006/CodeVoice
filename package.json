@@ -16,7 +16,8 @@
     "start": "node dist/cli.js",
     "phase0": "ts-node scripts/phase0-probe.ts",
     "phase1": "ts-node scripts/phase1-mic-test.ts",
-    "test:agents": "ts-node scripts/test-agents.ts"
+    "test:agents": "ts-node scripts/test-agents.ts",
+    "test:translit": "ts-node scripts/test-transliteration.ts"
   },
   "dependencies": {
     "@convo-lang/tui": "^0.9.8",
