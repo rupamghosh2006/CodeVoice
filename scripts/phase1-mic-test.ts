@@ -50,20 +50,20 @@ async function main(): Promise<void> {
   let finalCount = 0;
 
   streaming.on('ready', () => {
-    console.log(`${GREEN}✅ AssemblyAI session ready — speak now!${RESET}\n`);
+    console.log(`${GREEN}[OK] AssemblyAI session ready — speak now!${RESET}\n`);
     mic.start();
   });
 
   streaming.on('transcript', (event) => {
     if (!event.isFinal) {
       // Overwrite the partial line in place
-      process.stdout.write(`\r${BLUE}● ${event.text.substring(0, 80)}${RESET}                `);
+      process.stdout.write(`\r${BLUE}* ${event.text.substring(0, 80)}${RESET}                `);
       partialCount++;
     } else {
       // Clear the partial line and print the final turn
       process.stdout.write('\r' + ' '.repeat(90) + '\r');
 
-      console.log(`${GREEN}✓ [FINAL]  ${event.text}${RESET}`);
+      console.log(`${GREEN}[FINAL]  ${event.text}${RESET}`);
       if (event.rawText && event.rawText !== event.text) {
         console.log(`${DIM}  ↳ Raw:   ${event.rawText}${RESET}`);
       }
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
   });
 
   streaming.on('error', (err) => {
-    console.error(`\n❌ Streaming error: ${err.message}`);
+    console.error(`\n[ERROR] Streaming error: ${err.message}`);
   });
 
   mic.on('audio', (chunk) => {
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   });
 
   mic.on('error', (err) => {
-    console.error(`\n❌ Mic error: ${err.message}`);
+    console.error(`\n[ERROR] Mic error: ${err.message}`);
     console.error('Make sure SoX is installed: choco install sox.portable');
     process.exit(1);
   });
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
   console.log(`\n${BOLD}── Phase 1 Results ──${RESET}`);
   console.log(`Partials received : ${partialCount}`);
   console.log(`Final turns       : ${finalCount}`);
-  console.log(`\n${finalCount > 0 ? '✅ PASS' : '⚠️  No finals — check mic/SoX setup'}`);
+  console.log(`\n${finalCount > 0 ? '[PASS]' : '[WARN] No finals — check mic/SoX setup'}`);
   console.log('\nNext: check that:');
   console.log('  1. Filler words (um, uh, like) are stripped from FINAL but may appear in Raw');
   console.log('  2. Technical terms (useEffect, JWT, API) appear correctly spelled');

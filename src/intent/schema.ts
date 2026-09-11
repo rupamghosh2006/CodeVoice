@@ -70,7 +70,7 @@ export type GitIntent =
   | GitAddIntent
   | GitCheckoutIntent;
 
-// ── File switch intent ────────────────────────────────────────────────────────
+// ── File intents ──────────────────────────────────────────────────────────────
 
 export interface FileSwitchIntent {
   type: 'file_switch';
@@ -78,9 +78,15 @@ export interface FileSwitchIntent {
   path: string;
 }
 
+export interface FileDeleteIntent {
+  type: 'file_delete';
+  /** File path or name to delete */
+  path: string;
+}
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
-export type Intent = CodeIntent | GitIntent | FileSwitchIntent;
+export type Intent = CodeIntent | GitIntent | FileSwitchIntent | FileDeleteIntent;
 
 // ── Type guards ───────────────────────────────────────────────────────────────
 
@@ -106,6 +112,10 @@ export function isGitIntent(intent: Intent): intent is GitIntent {
 
 export function isFileSwitchIntent(intent: Intent): intent is FileSwitchIntent {
   return intent.type === 'file_switch';
+}
+
+export function isFileDeleteIntent(intent: Intent): intent is FileDeleteIntent {
+  return intent.type === 'file_delete';
 }
 
 /** Intents that are potentially destructive and require UI confirmation */

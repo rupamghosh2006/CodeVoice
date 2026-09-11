@@ -33,7 +33,11 @@ EXAMPLES:
 - "Checkout main" → {"type":"git_checkout","branch":"main"}
 - "Switch to demo/sample.ts" → {"type":"file_switch","path":"demo/sample.ts"}
 - "Open auth file" → {"type":"file_switch","path":"src/auth.ts"}
-- "File badlo demo/sample.ts" → {"type":"file_switch","path":"demo/sample.ts"}`;
+- "File badlo demo/sample.ts" → {"type":"file_switch","path":"demo/sample.ts"}
+- "Delete demo.ts" → {"type":"file_delete","path":"demo.ts"}
+- "demo.ts ko delete kar do" → {"type":"file_delete","path":"demo.ts"}
+- "Remove file demo.ts" → {"type":"file_delete","path":"demo.ts"}
+- "Delete this file" → {"type":"file_delete","path":"current"}`;
 
 // Gemini response schema for structured output
 const INTENT_SCHEMA = {
@@ -53,6 +57,7 @@ const INTENT_SCHEMA = {
         'git_add',
         'git_checkout',
         'file_switch',
+        'file_delete',
         'unknown',
       ],
     },
@@ -95,14 +100,19 @@ export class DestructiveIntentError extends Error {
  * Throws DestructiveIntentError for dangerous-sounding commands.
  * Throws UnknownIntentError if classification fails.
  */
-export async function routeIntent(transcript: string): Promise<Intent> {
+export async function routeIntent(
+  transcript: string,
+  options?: { skipSafetyGate?: boolean }
+): Promise<Intent> {
   logger.debug('Routing intent for:', transcript);
 
   // Safety gate: check for destructive patterns before even calling the LLM
-  const lower = transcript.toLowerCase();
-  for (const kw of DESTRUCTIVE_KEYWORDS) {
-    if (lower.includes(kw)) {
-      throw new DestructiveIntentError(transcript, kw);
+  if (!options?.skipSafetyGate) {
+    const lower = transcript.toLowerCase();
+    for (const kw of DESTRUCTIVE_KEYWORDS) {
+      if (lower.includes(kw)) {
+        throw new DestructiveIntentError(transcript, kw);
+      }
     }
   }
 

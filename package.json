@@ -12,6 +12,7 @@
     "test:agents": "ts-node scripts/test-agents.ts"
   },
   "dependencies": {
+    "@convo-lang/tui": "^0.9.8",
     "@google/generative-ai": "^0.24.0",
     "assemblyai": "^4.9.0",
     "dotenv": "^16.4.7",

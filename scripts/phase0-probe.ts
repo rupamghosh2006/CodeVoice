@@ -148,11 +148,11 @@ async function main(): Promise<void> {
   if (fs.existsSync(TEST_CLIP_PATH)) {
     audioBuffer = fs.readFileSync(TEST_CLIP_PATH);
     audioFilename = 'test-clip.wav';
-    console.log(`🎵 Using: ${TEST_CLIP_PATH} (${(audioBuffer.length / 1024).toFixed(1)} KB)`);
+    console.log(`[AUDIO] Using: ${TEST_CLIP_PATH} (${(audioBuffer.length / 1024).toFixed(1)} KB)`);
   } else {
     audioBuffer = generateToneWav(2000); // 2s tone — more likely to trigger transcription
     audioFilename = 'tone.wav';
-    console.log('⚠️  No test-clip.wav found — using synthetic 2s tone\n');
+    console.log('[WARN] No test-clip.wav found — using synthetic 2s tone\n');
   }
 
   try {
@@ -166,16 +166,16 @@ async function main(): Promise<void> {
     if (parsed) {
       console.log('\nResponse keys:', Object.keys(parsed).join(', '));
       if (parsed.text || parsed.transcript) {
-        console.log('✅ Transcript:', parsed.text ?? parsed.transcript);
+        console.log('[OK] Transcript:', parsed.text ?? parsed.transcript);
       }
       if (parsed.language_code || parsed.language) {
-        console.log('🌐 Language:', parsed.language_code ?? parsed.language);
+        console.log('[LANG] Language:', parsed.language_code ?? parsed.language);
       }
       if (parsed.words) {
-        console.log('📝 Word count:', parsed.words.length);
+        console.log('[COUNT] Word count:', parsed.words.length);
       }
       if (parsed.error) {
-        console.log('❌ Error:', parsed.error);
+        console.log('[ERROR] Error:', parsed.error);
       }
     }
   } catch (err) {
@@ -188,9 +188,9 @@ async function main(): Promise<void> {
   try {
     const wsResult = await testFlagshipWs();
     if (wsResult.connected) {
-      console.log(`✅ Flagship WS: CONNECTED (session: ${wsResult.sessionId})`);
+      console.log(`[OK] Flagship WS: CONNECTED (session: ${wsResult.sessionId})`);
     } else {
-      console.log(`❌ Flagship WS: FAILED — ${wsResult.error}`);
+      console.log(`[FAIL] Flagship WS: FAILED — ${wsResult.error}`);
     }
   } catch (err) {
     console.log('WS test error:', err);

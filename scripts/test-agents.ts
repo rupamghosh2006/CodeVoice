@@ -24,7 +24,7 @@ async function runTests() {
   if (genIntent.type !== 'code_generation') {
     throw new Error(`Expected code_generation, got ${genIntent.type}`);
   }
-  console.log('✅ Test 1 Passed\n');
+  console.log('[PASS] Test 1 Passed\n');
   await new Promise((r) => setTimeout(r, 2000));
 
   // Test 2: Hinglish code edit routing
@@ -34,7 +34,7 @@ async function runTests() {
   if (editIntent.type !== 'code_edit') {
     throw new Error(`Expected code_edit, got ${editIntent.type}`);
   }
-  console.log('✅ Test 2 Passed\n');
+  console.log('[PASS] Test 2 Passed\n');
   await new Promise((r) => setTimeout(r, 2000));
 
   // Test 3: Hinglish Git branch routing
@@ -44,7 +44,7 @@ async function runTests() {
   if (branchIntent.type !== 'git_branch' || !('name' in branchIntent)) {
     throw new Error(`Expected git_branch, got ${branchIntent.type}`);
   }
-  console.log('✅ Test 3 Passed\n');
+  console.log('[PASS] Test 3 Passed\n');
 
   // Test 4: Destructive intent protection
   console.log('Test 4: Destructive Intent Interception...');
@@ -54,13 +54,13 @@ async function runTests() {
   } catch (err) {
     if (err instanceof DestructiveIntentError) {
       intercepted = true;
-      console.log(`✅ Successfully intercepted: "${err.matchedKeyword}"`);
+      console.log(`[OK] Successfully intercepted: "${err.matchedKeyword}"`);
     } else {
       throw err;
     }
   }
   if (!intercepted) throw new Error('Failed to intercept destructive keyword');
-  console.log('✅ Test 4 Passed\n');
+  console.log('[PASS] Test 4 Passed\n');
 
   // Test 5: Code Agent Execution on demo/sample.ts
   console.log('Test 5: Executing Code Agent with Gemini...');
@@ -77,7 +77,7 @@ async function runTests() {
   if (!updatedContent.includes('validateEmail')) {
     throw new Error('demo/sample.ts was not updated with generated code');
   }
-  console.log('✅ Test 5 Passed (demo/sample.ts successfully written!)\n');
+  console.log('[PASS] Test 5 Passed (demo/sample.ts successfully written!)\n');
 
   // Test 6: Git Agent Execution (Status)
   console.log('Test 6: Executing Git Agent (git status)...');
@@ -86,7 +86,7 @@ async function runTests() {
   if (!gitResult.success) {
     throw new Error(`Git status failed: ${gitResult.output}`);
   }
-  console.log('✅ Test 6 Passed\n');
+  console.log('[PASS] Test 6 Passed\n');
   await new Promise((r) => setTimeout(r, 2000));
 
   // Test 7: File switch routing
@@ -96,13 +96,23 @@ async function runTests() {
   if (switchIntent.type !== 'file_switch' || !('path' in switchIntent)) {
     throw new Error(`Expected file_switch, got ${switchIntent.type}`);
   }
-  console.log('✅ Test 7 Passed\n');
+  console.log('[PASS] Test 7 Passed\n');
+  await new Promise((r) => setTimeout(r, 2000));
 
-  console.log('🎉 ALL TESTS PASSED! Intent router, Code agent, and Git agent are fully functioning.');
+  // Test 8: File delete routing with skipSafetyGate
+  console.log('Test 8: Routing File Delete Intent with skipSafetyGate...');
+  const deleteIntent = await routeIntent('Delete demo.ts', { skipSafetyGate: true });
+  console.log('Result:', JSON.stringify(deleteIntent, null, 2));
+  if (deleteIntent.type !== 'file_delete' || !('path' in deleteIntent)) {
+    throw new Error(`Expected file_delete, got ${deleteIntent.type}`);
+  }
+  console.log('[PASS] Test 8 Passed\n');
+
+  console.log('[SUCCESS] ALL TESTS PASSED! Intent router, Code agent, Git agent, and File operations are fully functioning.');
 }
 
 runTests().catch((err) => {
-  console.error('❌ Test failed:', err);
+  console.error('[FAIL] Test failed:', err);
   if (err?.cause) console.error('Cause:', err.cause);
   process.exit(1);
 });
