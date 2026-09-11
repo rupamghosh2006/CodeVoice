@@ -1,6 +1,6 @@
 {
   "name": "@rupamghosh2006/codevoice",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multilingual voice interface for software development — AssemblyAI Hackathon 2026",
   "main": "dist/index.js",
   "bin": {
